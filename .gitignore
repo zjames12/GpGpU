@@ -1,0 +1,8 @@
+.DS_Store
+.Rproj.user
+inst/doc
+.Rproj.user
+.Rbuildignore
+.gitignore~
+src/*.so
+src/*.o

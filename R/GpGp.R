@@ -1,0 +1,68 @@
+#' GpGp: Fast Gaussian Process Computing.
+#' 
+#' Vecchia's (1988)
+#' Gaussian process approximation has emerged among its competitors
+#' as a leader in computational scalability and accuracy. This package includes
+#' implementations of the original approximation, as well as several
+#' updates to it, including the reordered and grouped versions of the 
+#' approximation outlined in Guinness (2018) and the Fisher scoring algorithm
+#' described in Guinness (2019). The package supports spatial
+#' models, spatial-temporal models, models on spheres, and some nonstationary models.
+#'
+#' @details The main functions of the package are \code{\link{fit_model}}, 
+#' and \code{\link{predictions}}.
+#' \code{\link{fit_model}} returns estimates of covariance parameters
+#' and linear mean parameters. The user is expected to select a covariance function
+#' and specify it with a string. Currently supported covariance functions are 
+#' \itemize{
+#'     \item \code{\link{matern_isotropic}}
+#'     \item \code{\link{exponential_isotropic}}
+#'     \item \code{\link{matern_anisotropic2D}}
+#'     \item \code{\link{exponential_anisotropic2D}}
+#'     \item \code{\link{matern_anisotropic3D}}
+#'     \item \code{\link{exponential_anisotropic3D}}
+#'     \item \code{\link{matern_anisotropic3D_alt}}
+#'     \item \code{\link{matern15_isotropic}}
+#'     \item \code{\link{matern25_isotropic}}
+#'     \item \code{\link{matern35_isotropic}}
+#'     \item \code{\link{matern45_isotropic}}
+#'     \item \code{\link{matern_scaledim}}
+#'     \item \code{\link{exponential_scaledim}}
+#'     \item \code{\link{matern15_scaledim}}
+#'     \item \code{\link{matern25_scaledim}}
+#'     \item \code{\link{matern35_scaledim}}
+#'     \item \code{\link{matern45_scaledim}}
+#'     \item \code{\link{matern_spacetime}}
+#'     \item \code{\link{exponential_spacetime}}
+#'     \item \code{\link{matern_nonstat_var}}
+#'     \item \code{\link{exponential_nonstat_var}}
+#'     \item \code{\link{matern_sphere}}
+#'     \item \code{\link{exponential_sphere}}
+#'     \item \code{\link{matern_spheretime}}
+#'     \item \code{\link{exponential_spheretime}}
+#'     \item \code{\link{matern_sphere_warp}}
+#'     \item \code{\link{exponential_sphere_warp}}
+#'     \item \code{\link{matern_spheretime_warp}}
+#'     \item \code{\link{exponential_spheretime_warp}}
+#' }
+#' 
+#' If there are 
+#' covariates, they can be expressed via a design matrix \code{X}, each row containing
+#' the covariates corresponding to the same row in \code{locs}. 
+#' 
+#' For \code{\link{predictions}}, the user should specify prediction locations 
+#' \code{locs_pred} and a prediction design matrix \code{X_pred}.
+#' 
+#' The vignettes are intended to be helpful for getting a sense of how 
+#' these functions work. 
+#' 
+#' For Gaussian process researchers, the package also provides access to functions for
+#' computing the likelihood, gradient, and Fisher information with respect
+#' to covariance parameters; reordering functions, nearest neighbor-finding 
+#' functions, grouping (partitioning) functions, and approximate simulation functions.
+#'
+#' @docType package
+#' @name GpGp
+#' @useDynLib GpGp
+#' @importFrom Rcpp sourceCpp
+NULL
