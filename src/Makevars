@@ -1,10 +1,10 @@
 PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) $(SHLIB_OPENMP_CXXFLAGS)
 PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS)
-PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) $(SHLIB_OPENMP_CXXFLAGS) -L /usr/local/cuda-12.1/targets/x86_64-linux/lib -Wl,-rpath, /usr/local/cuda-12.1/targets/x86_64-linux/lib/libcudart.so 
+PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) $(SHLIB_OPENMP_CXXFLAGS) -L /usr/local/cuda-11.2/targets/x86_64-linux/lib -Wl,-rpath, /usr/local/cuda-11.2/targets/x86_64-linux/lib/libcudart.so 
 PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS)
 # CUDA_HOME = "/mnt/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.0"
-CUDA_HOME = /usr/local/cuda-12.1
-R_HOME = /usr/bin
+CUDA_HOME = /usr/local/cuda-11.2
+R_HOME = ~/.conda/envs/r_env/lib/R/bin #/usr/bin ??
 CXX = /usr/bin/g++
 
 # This defines what the shared object libraries will be
@@ -14,17 +14,12 @@ CXX = /usr/bin/g++
 
 #########################################
 
-R_INC = /usr/share/R/include
-# RCPP_INC = $(R_HOME)/library/Rcpp/include
-# RCPP_INC = "C:\Users\DellS\Documents\R\win-library\4.1\Rcpp\include"
-RCPP_ARMA_INC = "/home/dells/R/x86_64-pc-linux-gnu-library/4.1/RcppArmadillo/include"
-# RCPP_INC = $(R_HOME)/library/Rcpp/include
-RCPP_INC = "/home/dells/R/x86_64-pc-linux-gnu-library/4.1/Rcpp/include"
-BH_INC =  "/home/dells/R/x86_64-pc-linux-gnu-library/4.1/BH/include"
+R_INC = ~/.conda/envs/r_env/lib/R/include #/usr/share/R/include ??
+RCPP_ARMA_INC = ~/.conda/envs/r_env/lib/R/library/RcppArmadillo/include #"/home/dells/R/x86_64-pc-linux-gnu-library/4.1/RcppArmadillo/include"
+RCPP_INC = ~/.conda/envs/r_env/lib/R/library/Rcpp/include #"/home/dells/R/x86_64-pc-linux-gnu-library/4.1/Rcpp/include"
+BH_INC =  ~/.conda/envs/r_env/lib/R/library/BH/include #"/home/dells/R/x86_64-pc-linux-gnu-library/4.1/BH/include"
 NVCC = $(CUDA_HOME)/bin/nvcc
-# CUDA_INC = $(CUDA_HOME)/include
 CUDA_INC = $(CUDA_HOME)/targets/x86_64-linux/lib
-# CUDA_LIB = $(CUDA_HOME)/lib/x64
 
 LIBS = -lcudart
 NVCC_FLAGS = -m64 -I$(R_INC)
@@ -38,9 +33,9 @@ cpp_sharedlibs := $(patsubst %.cpp, %.o, $(cpp_sources))
 
 OBJECTS = $(cu_sharedlibs) $(cpp_sharedlibs)
 
-all : GpGp.so
+all : GpGpU.so
 
-GpGp.so: $(OBJECTS)
+GpGpU.so: $(OBJECTS)
 
 %.o: %.cpp $(cpp_sources)
 	$(CXX) $< -c -v -fPIC -I$(R_INC) -I$(RCPP_INC) -I$(RCPP_ARMA_INC) -I$(BH_INC)
