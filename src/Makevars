@@ -1,10 +1,10 @@
-PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) $(SHLIB_OPENMP_CXXFLAGS)
+#PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) $(SHLIB_OPENMP_CXXFLAGS)
 PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS)
 PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) $(SHLIB_OPENMP_CXXFLAGS) -L /usr/local/cuda-11.2/targets/x86_64-linux/lib -Wl,-rpath, /usr/local/cuda-11.2/targets/x86_64-linux/lib/libcudart.so 
 PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS)
 # CUDA_HOME = "/mnt/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.0"
 CUDA_HOME = /usr/local/cuda-11.2
-R_HOME = ~/.conda/envs/r_env/lib/R/bin #/usr/bin ??
+# R_HOME = ~/.conda/envs/r_env/lib/R/bin
 CXX = /usr/bin/g++
 
 # This defines what the shared object libraries will be
@@ -14,10 +14,10 @@ CXX = /usr/bin/g++
 
 #########################################
 
-R_INC = ~/.conda/envs/r_env/lib/R/include #/usr/share/R/include ??
-RCPP_ARMA_INC = ~/.conda/envs/r_env/lib/R/library/RcppArmadillo/include #"/home/dells/R/x86_64-pc-linux-gnu-library/4.1/RcppArmadillo/include"
-RCPP_INC = ~/.conda/envs/r_env/lib/R/library/Rcpp/include #"/home/dells/R/x86_64-pc-linux-gnu-library/4.1/Rcpp/include"
-BH_INC =  ~/.conda/envs/r_env/lib/R/library/BH/include #"/home/dells/R/x86_64-pc-linux-gnu-library/4.1/BH/include"
+R_INC = "/home/zj37/.conda/envs/r_env/lib/R/include"
+RCPP_ARMA_INC = "/home/zj37/.conda/envs/r_env/lib/R/library/RcppArmadillo/include"
+RCPP_INC = "/home/zj37/.conda/envs/r_env/lib/R/library/Rcpp/include"
+BH_INC =  "/home/zj37/.conda/envs/r_env/lib/R/library/BH/include"
 NVCC = $(CUDA_HOME)/bin/nvcc
 CUDA_INC = $(CUDA_HOME)/targets/x86_64-linux/lib
 
@@ -35,13 +35,10 @@ OBJECTS = $(cu_sharedlibs) $(cpp_sharedlibs)
 
 all : GpGpU.so
 
-GpGpU.so: $(OBJECTS)
+GpGpU.so : $(OBJECTS)
 
-%.o: %.cpp $(cpp_sources)
+%.o : %.cpp $(cpp_sources)
 	$(CXX) $< -c -v -fPIC -I$(R_INC) -I$(RCPP_INC) -I$(RCPP_ARMA_INC) -I$(BH_INC)
 
-# %.o: %.cu $(cu_sources)
-# 	$(NVCC) $(NVCC_FLAGS) -I$(CUDA_INC) $< -c
-
 onepassgpu.o : onepassgpu.cu
-	$(NVCC) $(NVCC_FLAGS) -I$(CUDA_INC) $< -c -I$(RCPP_INC) -I$(RCPP_ARMA_INC) -I$(BH_INC)
+	$(NVCC) $(NVCC_FLAGS) -I$(CUDA_INC) $< -c -v -Xcompiler -fpic -I$(RCPP_INC) -I$(RCPP_ARMA_INC) -I$(BH_INC)
