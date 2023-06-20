@@ -29,7 +29,7 @@ netid@g2-login-01:~$ /share/apps/anaconda3/2021.05/bin/conda init
 
 Next create a virtual environment with Anaconda that includes R.
 
-```{r}
+```Shell
 netid@g2-login-01:~$ conda create -n r-env r-essentials r-base
 netid@g2-login-01:~$ conda activate r-env
 ```
@@ -42,7 +42,13 @@ netid@g2-login-01:~$ R CMD build GpGpU
 netid@g2-login-01:~$ R CMD INSTALL GpGpU_0.4.0.tar.gz
 ```
 
- Any R scripts submitted to a compute node can now use GpGpU. Additonal resources can be found below:
+You will be asked to log in to your Github account. Enter your username when prompted. For the password, enter the following SSH key
+
+```
+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
+```
+
+ Any R scripts submitted to a compute node can now use GpGpU. Additional resources can be found below:
 
 - [Using a virtual environment in the G2 cluster](https://it.coecis.cornell.edu/researchit/g2cluster/g2-virtual-environments/)
 - [Using R language with Anaconda](https://docs.anaconda.com/free/anaconda/packages/using-r-language/#:~:text=When%20using%20conda%20to%20install,type%20conda%20install%20r%2Drjava%20.)
