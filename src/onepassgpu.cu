@@ -3,7 +3,7 @@
 #include <omp.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
-
+#include <algorithm>
 //' GPU Error check function
 //`
 //' Kernels do not throw exceptions. They instead return exit codes. If the exit code is

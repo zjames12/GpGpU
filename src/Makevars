@@ -74,9 +74,9 @@ cpp_sharedlibs := $(patsubst %.cpp, %.o, $(cpp_sources))
 
 OBJECTS = $(cu_sharedlibs) $(cpp_sharedlibs)
 
-all : GpGp.so
+all : GpGpU.so
 
-GpGp.so: $(OBJECTS)
+GpGpU.so : $(OBJECTS)
 
 %.o: %.cpp $(cpp_sources)
         $(CXX) $< -c -v -fPIC -I$(R_INC) -I$(RCPP_INC) -I$(RCPP_ARMA_INC) -I$(BH_INC)
