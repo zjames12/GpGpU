@@ -4,6 +4,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <algorithm>
+#include <string>
 //' GPU Error check function
 //`
 //' Kernels do not throw exceptions. They instead return exit codes. If the exit code is
@@ -350,6 +351,430 @@ double* vecchia_Linv_gpu_outer(
 
 }
 
+void compute_pieces_cpu(
+    double variance, double range, double nugget,
+    double* locs,
+    double* NNarray,
+    double* y,
+    double* X,
+    double* XSX,
+    double* ySX,
+    double ySy,
+    double logdet,
+    double* dXSX,
+    double* dySX,
+    double* dySy,
+    double* dlogdet,
+    double* ainfo,
+    int profbeta,
+    int grad_info,
+    int n, int m, int p, int nparms, int dim
+) {
+
+    
+   
+
+    /*arma::mat l_XSX = arma::mat(p, p, arma::fill::zeros);
+    arma::vec l_ySX = arma::vec(p, arma::fill::zeros);
+    double l_ySy = 0.0;
+    double l_logdet = 0.0;
+    arma::cube l_dXSX = arma::cube(p, p, nparms, arma::fill::zeros);
+    arma::mat l_dySX = arma::mat(p, nparms, arma::fill::zeros);
+    arma::vec l_dySy = arma::vec(nparms, arma::fill::zeros);
+    arma::vec l_dlogdet = arma::vec(nparms, arma::fill::zeros);
+    arma::mat l_ainfo = arma::mat(nparms, nparms, arma::fill::zeros);*/
+
+    for (int i = 0; i < n; i++) {
+        clock_t start = clock();
+        int bsize = std::min(i + 1, m);
+        if (bsize == m) {
+            continue;
+        }
+        double* locsub = (double*)malloc(sizeof(double) * bsize * dim);
+        double* ysub = (double*)malloc(sizeof(double) * bsize );
+        double* X0 = (double*)malloc(sizeof(double) * bsize * p);
+        for (int j = bsize - 1; j >= 0; j--) {
+            ysub[bsize - 1 - j] = y[static_cast<int>(NNarray[i * m + j]) - 1];
+            for (int k = 0; k < dim; k++) {
+                locsub[(bsize - 1 - j) * dim + k] = locs[(static_cast<int>(NNarray[i * m + j]) - 1) * dim + k] / range;
+            }
+            if (profbeta) {
+                for (int k = 0; k < p; k++) {
+                    X0[(bsize - 1 - j) * p + k] = X[(static_cast<int>(NNarray[i * m + j]) - 1) * p + k];
+                }
+            }
+        }
+        
+        clock_t end = clock();
+        if (i == 10000) {
+            printf("Substituting NN + scaling: %i\n", end - start);
+        }
+        start = clock();
+        // compute covariance matrix and derivatives and take cholesky
+        // arma::mat covmat = p_covfun[0](covparms, locsub);
+        //double* covmat = exponential_isotropic(covparms, locsub, m, dim);
+        // Calculate covmatrix
+        double* covmat = (double*)malloc(sizeof(double) * bsize * bsize);
+        
+        double temp;
+        for (int i1 = 0; i1 < bsize; i1++) {
+            for (int i2 = 0; i2 <= i1; i2++) {
+                double d = 0.0;
+                for (int j = 0; j < dim; j++) {
+                    temp = locsub[i1 * dim + j] - locsub[i2 * dim + j];
+                    d += temp * temp;
+                }
+                d = sqrt(d);
+                // calculate covariance
+                if (i1 == i2) {
+                    covmat[i2 * bsize + i1] = variance * (exp(-d) + nugget);
+                }
+                else {
+                    covmat[i2 * bsize + i1] = variance * exp(-d);
+                    covmat[i1 * bsize + i2] = covmat[i2 * bsize + i1];
+                }
+            }
+        }
+        end = clock();
+        /*if (i == 40) {
+            printf("GPU covmat\n");
+            for (int i = 0; i < 4; i++) {
+                for (int j = 0; j < 4; j++) {
+                    printf("%f ", covmat[40 * m * m + i * m + j]);
+                }
+                printf("\n");
+            }
+        }*/
+        if (i == 10000) {
+            printf("Covariance matrix: %i\n", end - start);
+        }
+        
+        start = clock();
+        double* dcovmat = (double*)malloc(sizeof(double) * bsize * bsize * nparms);
+        
+        if (grad_info) {
+            // calculate derivatives
+            //arma::cube dcovmat = arma::cube(n, n, covparms.n_elem, fill::zeros);
+            //dcovmat = (double*)malloc(sizeof(double) * m * m * nparms);
+            for (int i1 = 0; i1 < bsize; i1++) {
+                for (int i2 = 0; i2 <= i1; i2++) {
+                    double d = 0.0;
+                    double a = 0;
+                    for (int j = 0; j < dim; j++) {
+                        a = locsub[i1 * dim + j] - locsub[i2 * dim + j];
+                        d += a * a;
+                    }
+                    d = sqrt(d);
+                    temp = exp(-d);
+
+                    dcovmat[i1 * bsize * nparms + i2 * nparms + 0] += temp;
+                    dcovmat[i1 * bsize * nparms + i2 * nparms + 1] += variance * temp * d / range;
+                    if (i1 == i2) { // update diagonal entry
+                        dcovmat[i1 * bsize * nparms + i2 * nparms + 0] += nugget;
+                        dcovmat[i1 * bsize * nparms + i2 * nparms + 2] = variance;
+                    }
+                    else { // fill in opposite entry
+                        for (int j = 0; j < nparms; j++) {
+                            dcovmat[i2 * bsize * nparms + i1 * nparms + j] = dcovmat[i1 * bsize * nparms + i2 * nparms + j];
+                        }
+                    }
+                }
+            }
+
+        }
+        end = clock();
+        if (i == 10000) {
+            printf("Covariance derivative: %i\n", end - start);
+        }
+        start = clock();
+        /*arma::mat cholmat = eye(size(covmat));
+        chol(cholmat, covmat, "lower");*/
+
+        // Cholesky decomposition
+        double temp2;
+        double diff;
+        
+        
+        int r, j, k, l;
+        for (r = 0; r < bsize; r++) {
+            diff = 0;
+            for (k = 0; k < r; k++) {
+                temp = covmat[r * bsize + k];
+                diff += temp * temp;
+            }
+            covmat[r * bsize + r] = sqrt(covmat[r * bsize + r] - diff);
+
+
+            for (j = r + 1; j < bsize; j++) {
+                diff = 0;
+                for (k = 0; k < r; k++) {
+                    diff += covmat[r * bsize + k] * covmat[j * bsize + k];
+                }
+                covmat[j * bsize + r] = (covmat[j * bsize + r] - diff) / covmat[r * bsize + r];
+            }
+        }
+
+        end = clock();
+        if (i == 10000) {
+            printf("Cholesky decomposition: %i\n", end - start);
+        }
+
+
+        start = clock();
+        // i1 is conditioning set, i2 is response        
+        //arma::span i1 = span(0,bsize-2);
+        //arma::span i2 = span(bsize - 1, bsize - 1);
+
+        // get last row of cholmat
+        /*arma::vec onevec = zeros(bsize);
+        onevec(bsize - 1) = 1.0;*/
+        double* choli2 = (double*)malloc(sizeof(double) * bsize);
+
+        if (grad_info) {
+            //choli2 = backward_solve(cholmat, onevec, m);
+            choli2[bsize - 1] = 1 / covmat[(bsize - 1) * bsize + bsize - 1];
+
+            for (int k = bsize - 2; k >= 0; k--) {
+                double dd = 0.0;
+                for (int j = bsize - 1; j > k; j--) {
+                    dd += covmat[j * bsize + k] * choli2[j];
+                }
+                choli2[k] = (-dd) / covmat[k * bsize + k];
+            }
+        }
+        end = clock();
+        if (i == 10000) {
+            printf("solve(cholmat, onevec, m): %i\n", end - start);
+        }
+        bool cond = bsize > 1;
+        
+        // do solves with X and y
+        double* LiX0 = (double*)malloc(sizeof(double) * bsize * p);
+
+        if (profbeta) {
+            start = clock();
+            // LiX0 = forward_solve_mat(cholmat, X0, m, p);
+            for (int k = 0; k < p; k++) {
+                LiX0[0 * p + k] = X0[0 * p + k] / covmat[0 * bsize + 0];
+            }
+
+            for (int h = 1; h < bsize; h++) {
+                for (int k = 0; k < p; k++) {
+                    double dd = 0.0;
+                    for (int j = 0; j < h; j++) {
+                        dd += covmat[h * bsize + j] * LiX0[j * bsize + k];
+                    }
+                    LiX0[h * bsize + k] = (X0[h * p + k] - dd) / covmat[h * bsize + h];
+                }
+            }
+            end = clock();
+            if (i == 10000) {
+                printf("forward_solve_mat(cholmat, X0, m, p): %i\n", end - start);
+            }
+
+        }
+        for (int j = 0; j < bsize; j++) {
+            for (int k = j + 1; k < bsize; k++) {
+                covmat[j * bsize + k] = 0.0;
+            }
+        }
+        
+        //arma::vec Liy0 = solve( trimatl(cholmat), ysub );
+        //double* Liy0 = forward_solve(cholmat, ysub, m);
+        //double* Liy0 = (double*)malloc(sizeof(double) * m);
+        /*for (int j = 0; j < m; j++) {
+            Liy0[i * m + j] = 0.0f;
+        }*/
+        start = clock();
+        double* Liy0 = (double*)malloc(sizeof(double) * bsize);
+
+        Liy0[0] = ysub[0] / covmat[0 * bsize + 0];
+
+        for (int k = 1; k < bsize; k++) {
+            double dd = 0.0;
+            for (int j = 0; j < k; j++) {
+                dd += covmat[k * bsize + j] * Liy0[j];
+            }
+            Liy0[k] = (ysub[k] - dd) / covmat[k * bsize + k];
+        }
+        end = clock();
+        if (i == 10000) {
+            printf("forward_solve(cholmat, ysub, m): %i\n", end - start);
+            start = clock();
+        }
+
+        // loglik objects
+        logdet += 2.0 * log(covmat[(bsize - 1) * bsize + bsize - 1]);
+
+        temp = Liy0[bsize - 1];
+        ySy += temp * temp;
+
+        
+        if (profbeta) {
+            start = clock();
+            /*l_XSX += LiX0.rows(i2).t() * LiX0.rows(i2);
+            l_ySX += (Liy0(i2) * LiX0.rows(i2)).t();*/
+            temp2 = Liy0[bsize - 1];
+            for (int i1 = 0; i1 < p; i1++) {
+                temp = LiX0[(bsize - 1) * p + i1];
+                for (int i2 = 0; i2 <= i1; i2++) {
+                    XSX[i1 * p + i2] = temp * LiX0[(bsize - 1) * p + i2];
+                    XSX[i2 * p + i1] = XSX[i1 * p + i2];
+                }
+                ySX[i1] = temp2 * LiX0[(bsize - 1) * p + i1];
+            }
+            end = clock();
+            if (i == 10000) {
+                printf("Liy0(i2) * LiX0.rows(i2): %i\n", end - start);
+                start = clock();
+            }
+        }
+        if (grad_info) {
+            // gradient objects
+            // LidSLi3 is last column of Li * (dS_j) * Lit for 1 parameter i
+            // LidSLi2 stores these columns in a matrix for all parameters
+            // arma::mat LidSLi2(bsize, nparms);
+
+            double* LidSLi2 = (double*)malloc(sizeof(double) * bsize * nparms);
+            
+            if (cond) {
+                start = clock();
+                for (int j = 0; j < nparms; j++) {
+                    double* LidSLi3 = (double*)malloc(sizeof(double) * bsize);
+                    double* c = (double*)malloc(sizeof(double) * bsize);
+
+                    // compute last column of Li * (dS_j) * Lit
+                    //arma::vec LidSLi3 = forward_solve(cholmat, dcovmat.slice(j) * choli2);
+                    // c = dcovmat.slice(j) * choli2
+                    for (int h = 0; h < bsize; h++) {
+                        c[h] = 0;
+                        temp = 0;
+                        for (int k = 0; k < bsize; k++) {
+                            temp += dcovmat[h * bsize * nparms + k * nparms + j] * choli2[k];
+                        }
+                        c[h] = temp;
+                    }
+
+                    //LidSLi3 = forward_solve(cholmat, c);      
+                    LidSLi3[0] = c[0] / covmat[0 * bsize + 0];
+
+                    for (int k = 1; k < bsize; k++) {
+                        double dd = 0.0;
+                        for (int l = 0; l < k; l++) {
+                            dd += covmat[k * bsize + l] * LidSLi3[l];
+                        }
+                        LidSLi3[k] = (c[k] - dd) / covmat[k * bsize + k];
+                    }
+
+                    ////////////////
+                    //arma::vec v1 = LiX0.t() * LidSLi3;
+                    double* v1 = (double*)malloc(sizeof(double) * p);
+
+                    for (int h = 0; h < p; h++) {
+                        v1[h] = 0;
+                        temp = 0;
+                        for (int k = 0; k < bsize; k++) {
+                            temp += LiX0[k * p + h] * LidSLi3[k];
+                        }
+                        v1[h] = temp;
+                    }
+                   
+                    ////////////////
+
+                    //double s1 = as_scalar(Liy0.t() * LidSLi3);
+                    double s1 = 0;
+                    for (int h = 0; h < bsize; h++) {
+                        s1 += Liy0[h] * LidSLi3[h];
+                    }
+
+                    ////////////////
+
+                    /*(l_dXSX).slice(j) += v1 * LiX0.rows(i2) + (v1 * LiX0.rows(i2)).t() -
+                        as_scalar(LidSLi3(i2)) * (LiX0.rows(i2).t() * LiX0.rows(i2));*/
+
+                        //double* v1LiX0 = (double*)malloc(sizeof(double) * m * m);
+                    double temp3;
+                    double temp4 = LidSLi3[bsize - 1];
+                    for (int h = 0; h < p; h++) {
+                        temp = v1[h];
+                        temp2 = LiX0[(bsize - 1) * p + h];
+
+                        for (int k = 0; k < p; k++) {
+                            temp3 = LiX0[(m - 1) * p + k];
+                            dXSX[h * p * nparms + k * nparms + j] += temp * temp3 +
+                                (v1[k] - temp4 * temp3) * temp2;
+                        }
+                    }
+                    temp = Liy0[bsize - 1];
+                    ///////////////
+                    /*(l_dySy)(j) += as_scalar(2.0 * s1 * Liy0(i2) -
+                        LidSLi3(i2) * Liy0(i2) * Liy0(i2));*/
+                    dySy[j] += (2 * s1 - temp4 * temp) * temp;
+
+                    /*(l_dySX).col(j) += (s1 * LiX0.rows(i2) + (v1 * Liy0(i2)).t() -
+                        as_scalar(LidSLi3(i2)) * LiX0.rows(i2) * as_scalar(Liy0(i2))).t();*/
+                    temp3 = LidSLi3[bsize - 1];
+                    for (int h = 0; h < p; h++) {
+                        temp2 = LiX0[(bsize - 1) * p + h];
+                        dySX[h * nparms + j] += s1 * temp2 +
+                            v1[h] * temp - temp3 * temp2 * temp;
+                    }
+
+                    //(l_dlogdet)(j) += as_scalar(LidSLi3(i2));
+                    dlogdet[j] += temp3;
+
+                    //LidSLi2.col(j) = LidSLi3;
+                    for (int h = 0; h < bsize; h++) {
+                        LidSLi2[h * nparms + j] = LidSLi3[h];
+                    }
+                    /*if (i == 40 && j == 2) {
+                        printf("CPU s1\n");
+                        printf("%f", s1);
+                    }*/
+
+                }
+                end = clock();
+                if (i == 10000) {
+                    printf("gradient objects: %i\n", end - start);
+                    start = clock();
+                }
+                start = clock();
+                // fisher information object
+                // bottom right corner gets double counted, so subtract it off
+                for (int h = 0; h < nparms; h++) {
+                    temp2 = LidSLi2[(bsize - 1) * nparms + h];
+                    for (int j = 0; j < h + 1; j++) {
+                        /*(l_ainfo)(h, j) +=
+                            1.0 * accu(LidSLi2.col(h) % LidSLi2.col(j)) -
+                            0.5 * accu(LidSLi2.rows(i2).col(j) %
+                                LidSLi2.rows(i2).col(h));*/
+                        double s = 0;
+                        for (int l = 0; l < bsize; l++) {
+                            s += LidSLi2[l * bsize + h] * LidSLi2[l * bsize + j];
+                        }
+                        ainfo[h * nparms + j] = s - 0.5 * LidSLi2[(bsize - 1) * nparms + j] * temp2;
+                    }
+                }
+                end = clock();
+                if (i == 10000) {
+                    printf("fisher information object: %i\n", end - start);
+                    start = clock();
+                }
+                
+
+                
+            }
+            else {
+
+            }
+        }
+
+
+    }
+    
+
+}
+
 __global__ void compute_pieces(double* y, double* X, double* NNarray, double* locs, double* locsub,
     double* covmat, double* logdet, double* ySy, double* XSX, double* ySX,
     double* dXSX, double* dySX, double* dySy, double* dlogdet, double* ainfo,
@@ -361,9 +786,7 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
     double* LidSLi2, double* c, double* v1, double* LidSLi3) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     //int bsize = std::min(i + 1, m);
-    clock_t full_start = clock();
     if (i >= m && i < n) {
-        clock_t start = clock();
         for (int j = m - 1; j >= 0; j--) {
             ysub[i * m + m - 1 - j] = y[static_cast<int>(NNarray[i * m + j]) - 1];
             for (int k = 0; k < dim; k++) {
@@ -375,22 +798,9 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
                 }
             }
         }
-        /*if (i == 40) {
-            printf("GPU X0\n");
-            for (int j = 0; j < 4; j++) {
-
-                printf("%f ", X0[40 * m * p + j * p + 0]);
-            }
-        }*/
-        clock_t end = clock();
-        if (i == 10000) {
-            printf("Substituting NN + scaling: %i\n", end - start);
-        }
-        start = clock();
-        // compute covariance matrix and derivatives and take cholesky
-        // arma::mat covmat = p_covfun[0](covparms, locsub);
-        //double* covmat = exponential_isotropic(covparms, locsub, m, dim);
-        // Calculate covmatrix
+        
+        
+       
         double temp;
         for (int i1 = 0; i1 < m; i1++) {
             for (int i2 = 0; i2 <= i1; i2++) {
@@ -410,21 +820,9 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
                 }
             }
         }
-        end = clock();
-        /*if (i == 40) {
-            printf("GPU covmat\n");
-            for (int i = 0; i < 4; i++) {
-                for (int j = 0; j < 4; j++) {
-                    printf("%f ", covmat[40 * m * m + i * m + j]);
-                }
-                printf("\n");
-            }
-        }*/
-        if (i == 10000) {
-            printf("Covariance matrix: %i\n", end - start);
-        }
+        
 
-        start = clock();
+        
         if (grad_info) {
             // calculate derivatives
             //arma::cube dcovmat = arma::cube(n, n, covparms.n_elem, fill::zeros);
@@ -455,11 +853,7 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
             }
 
         }
-        end = clock();
-        if (i == 10000) {
-            printf("Covariance derivative: %i\n", end - start);
-        }
-        start = clock();
+       
         /*arma::mat cholmat = eye(size(covmat));
         chol(cholmat, covmat, "lower");*/
 
@@ -508,13 +902,7 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
             }
         }
 
-        end = clock();
-        if (i == 10000) {
-            printf("Cholesky decomposition: %i\n", end - start);
-        }
-
-
-        start = clock();
+        
         // i1 is conditioning set, i2 is response        
         //arma::span i1 = span(0,bsize-2);
         //arma::span i2 = span(bsize - 1, bsize - 1);
@@ -535,15 +923,11 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
                 choli2[i * m + k] = (-dd) / covmat[i * m * m + k * m + k];
             }
         }
-        end = clock();
-        if (i == 10000) {
-            printf("solve(cholmat, onevec, m): %i\n", end - start);
-        }
+        
         //bool cond = bsize > 1;
 
         // do solves with X and y
         if (profbeta) {
-            start = clock();
             // LiX0 = forward_solve_mat(cholmat, X0, m, p);
             for (int k = 0; k < p; k++) {
                 LiX0[i * m * p + 0 * p + k] = X0[i * m * p + 0 * p + k] / covmat[i * m * m + 0 * m + 0];
@@ -558,10 +942,7 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
                     LiX0[i * m * p + h * p + k] = (X0[i * m * p + h * p + k] - dd) / covmat[i * m * m + h * m + h];
                 }
             }
-            end = clock();
-            if (i == 10000) {
-                printf("forward_solve_mat(cholmat, X0, m, p): %i\n", end - start);
-            }
+            
 
         }
         for (int j = 0; j < m; j++) {
@@ -576,7 +957,6 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
         /*for (int j = 0; j < m; j++) {
             Liy0[i * m + j] = 0.0f;
         }*/
-        start = clock();
         Liy0[i * m + 0] = ysub[i * m + 0] / covmat[i * m * m + 0 * m + 0];
 
         for (int k = 1; k < m; k++) {
@@ -586,11 +966,7 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
             }
             Liy0[i * m + k] = (ysub[i * m + k] - dd) / covmat[i * m * m + k * m + k];
         }
-        end = clock();
-        if (i == 10000) {
-            printf("forward_solve(cholmat, ysub, m): %i\n", end - start);
-            start = clock();
-        }
+       
 
         // loglik objects
         logdet[i] = 2.0 * log(covmat[i * m * m + (m - 1) * m + m - 1]);
@@ -600,7 +976,6 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
 
 
         if (profbeta) {
-            start = clock();
             /*l_XSX += LiX0.rows(i2).t() * LiX0.rows(i2);
             l_ySX += (Liy0(i2) * LiX0.rows(i2)).t();*/
             temp2 = Liy0[i * m + m - 1];
@@ -612,11 +987,7 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
                 }
                 ySX[i * p + i1] = temp2 * LiX0[i * m * p + (m - 1) * p + i1];
             }
-            end = clock();
-            if (i == 10000) {
-                printf("Liy0(i2) * LiX0.rows(i2): %i\n", end - start);
-                start = clock();
-            }
+            
         }
         if (grad_info) {
             // gradient objects
@@ -626,7 +997,6 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
 
 
 
-            start = clock();
             for (int j = 0; j < nparms; j++) {
                 // compute last column of Li * (dS_j) * Lit
                 //arma::vec LidSLi3 = forward_solve(cholmat, dcovmat.slice(j) * choli2);
@@ -717,12 +1087,7 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
                 }*/
 
             }
-            end = clock();
-            if (i == 10000) {
-                printf("gradient objects: %i\n", end - start);
-                start = clock();
-            }
-            start = clock();
+            
             // fisher information object
             // bottom right corner gets double counted, so subtract it off
             for (int h = 0; h < nparms; h++) {
@@ -739,17 +1104,10 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
                     ainfo[i * nparms * nparms + h * nparms + j] = s - 0.5 * LidSLi2[i * m * nparms + (m - 1) * nparms + j] * temp2;
                 }
             }
-            end = clock();
-            if (i == 10000) {
-                printf("fisher information object: %i\n", end - start);
-                start = clock();
-            }
+           
         }
     }
-    clock_t full_end = clock();
-    if (i == 10000) {
-        printf("Total time: %i\n", full_end - full_start);
-    }
+   
 }
 
 
@@ -846,7 +1204,6 @@ void call_compute_pieces_gpu(
     int grid_size = 64;
     int block_size = ((n + grid_size) / grid_size);
 
-    auto begin = std::chrono::steady_clock::now();
     compute_pieces << <block_size, grid_size >> > (d_y, d_X, d_NNarray, d_locs, d_locs_scaled,
         d_covmat, d_logdet, d_ySy, d_XSX, d_ySX,
         d_dXSX, d_dySX, d_dySy, d_dlogdet, d_dainfo,
@@ -857,8 +1214,6 @@ void call_compute_pieces_gpu(
         d_ysub, d_X0, d_Liy0, d_LiX0, d_choli2, d_onevec,
         d_LidSLi2, d_c, d_v1, d_LidSLi3);
     cudaDeviceSynchronize();
-    auto end = std::chrono::steady_clock::now();
-    std::cout << "Kernel difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[mus]" << std::endl;
 
 
     double* l_ySy = (double*)malloc(sizeof(double) * n);

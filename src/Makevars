@@ -79,10 +79,10 @@ all : GpGpU.so
 GpGpU.so : $(OBJECTS)
 
 %.o: %.cpp $(cpp_sources)
-        $(CXX) $< -c -v -fPIC -I$(R_INC) -I$(RCPP_INC) -I$(RCPP_ARMA_INC) -I$(BH_INC)
+	$(CXX) $< -c -v -fPIC -I$(R_INC) -I$(RCPP_INC) -I$(RCPP_ARMA_INC) -I$(BH_INC)
 
 # %.o: %.cu $(cu_sources)
 #       $(NVCC) $(NVCC_FLAGS) -I$(CUDA_INC) $< -c
 
 onepassgpu.o : onepassgpu.cu
-        $(NVCC) $(NVCC_FLAGS) -I$(CUDA_INC) $< -c -I$(RCPP_INC) -I$(RCPP_ARMA_INC) -I$(BH_INC)
+	$(NVCC) $(NVCC_FLAGS) -I$(CUDA_INC) $< -c -I$(RCPP_INC) -I$(RCPP_ARMA_INC) -I$(BH_INC)
