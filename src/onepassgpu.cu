@@ -17,7 +17,7 @@ inline void gpuAssert(cudaError_t code, const char* file, int line, bool abort =
     if (code != cudaSuccess)
     {
         // printf("fail%i\n", code);
-        // fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+        printf("GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
 
         //if (abort) exit(code);
     }
@@ -372,7 +372,7 @@ void compute_pieces_cpu(
 ) {
 
     
-   
+   	printf("Inside\n");
 
     /*arma::mat l_XSX = arma::mat(p, p, arma::fill::zeros);
     arma::vec l_ySX = arma::vec(p, arma::fill::zeros);
@@ -383,8 +383,9 @@ void compute_pieces_cpu(
     arma::vec l_dySy = arma::vec(nparms, arma::fill::zeros);
     arma::vec l_dlogdet = arma::vec(nparms, arma::fill::zeros);
     arma::mat l_ainfo = arma::mat(nparms, nparms, arma::fill::zeros);*/
-
+    printf("n: %f", variance);
     for (int i = 0; i < n; i++) {
+        printf("%i", i);
         clock_t start = clock();
         int bsize = std::min(i + 1, m);
         if (bsize == m) {
@@ -406,9 +407,9 @@ void compute_pieces_cpu(
         }
         
         clock_t end = clock();
-        if (i == 10000) {
-            printf("Substituting NN + scaling: %i\n", end - start);
-        }
+        // if (i == 10000) {
+        //     printf("Substituting NN + scaling: %i\n", end - start);
+        // }
         start = clock();
         // compute covariance matrix and derivatives and take cholesky
         // arma::mat covmat = p_covfun[0](covparms, locsub);
@@ -445,9 +446,9 @@ void compute_pieces_cpu(
                 printf("\n");
             }
         }*/
-        if (i == 10000) {
-            printf("Covariance matrix: %i\n", end - start);
-        }
+        // if (i == 10000) {
+        //     printf("Covariance matrix: %i\n", end - start);
+        // }
         
         start = clock();
         double* dcovmat = (double*)malloc(sizeof(double) * bsize * bsize * nparms);
@@ -482,11 +483,11 @@ void compute_pieces_cpu(
             }
 
         }
-        end = clock();
-        if (i == 10000) {
-            printf("Covariance derivative: %i\n", end - start);
-        }
-        start = clock();
+        // end = clock();
+        // if (i == 10000) {
+        //     printf("Covariance derivative: %i\n", end - start);
+        // }
+        // start = clock();
         /*arma::mat cholmat = eye(size(covmat));
         chol(cholmat, covmat, "lower");*/
 
@@ -514,10 +515,10 @@ void compute_pieces_cpu(
             }
         }
 
-        end = clock();
-        if (i == 10000) {
-            printf("Cholesky decomposition: %i\n", end - start);
-        }
+        // end = clock();
+        // if (i == 10000) {
+        //     printf("Cholesky decomposition: %i\n", end - start);
+        // }
 
 
         start = clock();
@@ -542,10 +543,10 @@ void compute_pieces_cpu(
                 choli2[k] = (-dd) / covmat[k * bsize + k];
             }
         }
-        end = clock();
-        if (i == 10000) {
-            printf("solve(cholmat, onevec, m): %i\n", end - start);
-        }
+        // end = clock();
+        // if (i == 10000) {
+        //     printf("solve(cholmat, onevec, m): %i\n", end - start);
+        // }
         bool cond = bsize > 1;
         
         // do solves with X and y
@@ -567,10 +568,10 @@ void compute_pieces_cpu(
                     LiX0[h * bsize + k] = (X0[h * p + k] - dd) / covmat[h * bsize + h];
                 }
             }
-            end = clock();
-            if (i == 10000) {
-                printf("forward_solve_mat(cholmat, X0, m, p): %i\n", end - start);
-            }
+            // end = clock();
+            // if (i == 10000) {
+            //     printf("forward_solve_mat(cholmat, X0, m, p): %i\n", end - start);
+            // }
 
         }
         for (int j = 0; j < bsize; j++) {
@@ -597,11 +598,11 @@ void compute_pieces_cpu(
             }
             Liy0[k] = (ysub[k] - dd) / covmat[k * bsize + k];
         }
-        end = clock();
-        if (i == 10000) {
-            printf("forward_solve(cholmat, ysub, m): %i\n", end - start);
-            start = clock();
-        }
+        // end = clock();
+        // if (i == 10000) {
+        //     printf("forward_solve(cholmat, ysub, m): %i\n", end - start);
+        //     start = clock();
+        // }
 
         // loglik objects
         logdet += 2.0 * log(covmat[(bsize - 1) * bsize + bsize - 1]);
@@ -623,11 +624,11 @@ void compute_pieces_cpu(
                 }
                 ySX[i1] = temp2 * LiX0[(bsize - 1) * p + i1];
             }
-            end = clock();
-            if (i == 10000) {
-                printf("Liy0(i2) * LiX0.rows(i2): %i\n", end - start);
-                start = clock();
-            }
+            // end = clock();
+            // if (i == 10000) {
+            //     printf("Liy0(i2) * LiX0.rows(i2): %i\n", end - start);
+            //     start = clock();
+            // }
         }
         if (grad_info) {
             // gradient objects
@@ -733,12 +734,12 @@ void compute_pieces_cpu(
                     }*/
 
                 }
-                end = clock();
-                if (i == 10000) {
-                    printf("gradient objects: %i\n", end - start);
-                    start = clock();
-                }
-                start = clock();
+                // end = clock();
+                // if (i == 10000) {
+                //     printf("gradient objects: %i\n", end - start);
+                //     start = clock();
+                // }
+                // start = clock();
                 // fisher information object
                 // bottom right corner gets double counted, so subtract it off
                 for (int h = 0; h < nparms; h++) {
@@ -755,11 +756,11 @@ void compute_pieces_cpu(
                         ainfo[h * nparms + j] = s - 0.5 * LidSLi2[(bsize - 1) * nparms + j] * temp2;
                     }
                 }
-                end = clock();
-                if (i == 10000) {
-                    printf("fisher information object: %i\n", end - start);
-                    start = clock();
-                }
+                // end = clock();
+                // if (i == 10000) {
+                //     printf("fisher information object: %i\n", end - start);
+                //     start = clock();
+                // }
                 
 
                 
@@ -786,6 +787,7 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
     double* LidSLi2, double* c, double* v1, double* LidSLi3) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     //int bsize = std::min(i + 1, m);
+    
     if (i >= m && i < n) {
         for (int j = m - 1; j >= 0; j--) {
             ysub[i * m + m - 1 - j] = y[static_cast<int>(NNarray[i * m + j]) - 1];
@@ -974,7 +976,7 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
         temp = Liy0[i * m + m - 1];
         ySy[i] = temp * temp;
 
-
+        
         if (profbeta) {
             /*l_XSX += LiX0.rows(i2).t() * LiX0.rows(i2);
             l_ySX += (Liy0(i2) * LiX0.rows(i2)).t();*/
@@ -1114,7 +1116,6 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
 extern "C"
 void call_compute_pieces_gpu(
     double* covparms,
-    std::string covfun_name,
     double* locs,
     double* NNarray,
     double* y,
@@ -1158,7 +1159,7 @@ void call_compute_pieces_gpu(
     double* d_dySX;
     double* d_dySy;
     double* d_dlogdet;
-    double* d_dainfo;
+    double* d_ainfo;
 
     double* d_dcovmat;
     double* d_ysub;
@@ -1182,7 +1183,7 @@ void call_compute_pieces_gpu(
     gpuErrchk(cudaMalloc((void**)&d_dySX, sizeof(double) * n * p * nparms));
     gpuErrchk(cudaMalloc((void**)&d_dySy, sizeof(double) * n * nparms));
     gpuErrchk(cudaMalloc((void**)&d_dlogdet, sizeof(double) * n * nparms));
-    gpuErrchk(cudaMalloc((void**)&d_dainfo, sizeof(double) * n * nparms * nparms));
+    gpuErrchk(cudaMalloc((void**)&d_ainfo, sizeof(double) * n * nparms * nparms));
 
     gpuErrchk(cudaMalloc((void**)&d_dcovmat, sizeof(double) * n * m * m * nparms));
     gpuErrchk(cudaMalloc((void**)&d_ysub, sizeof(double) * n * m));
@@ -1206,7 +1207,7 @@ void call_compute_pieces_gpu(
 
     compute_pieces << <block_size, grid_size >> > (d_y, d_X, d_NNarray, d_locs, d_locs_scaled,
         d_covmat, d_logdet, d_ySy, d_XSX, d_ySX,
-        d_dXSX, d_dySX, d_dySy, d_dlogdet, d_dainfo,
+        d_dXSX, d_dySX, d_dySy, d_dlogdet, d_ainfo,
         covparms[0], covparms[1], covparms[2],
         n, p, m, dim, nparms,
         profbeta, grad_info,
@@ -1225,13 +1226,16 @@ void call_compute_pieces_gpu(
     double* l_dySy = (double*)malloc(sizeof(double) * n * nparms);
     double* l_dlogdet = (double*)malloc(sizeof(double) * n * nparms);
     double* l_ainfo = (double*)malloc(sizeof(double) * n * nparms * nparms);
-
+    
     gpuErrchk(cudaMemcpy(l_ySy, d_ySy, sizeof(double) * n, cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(l_logdet, d_logdet, sizeof(double) * n, cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(l_ySX, d_ySX, sizeof(double) * n * p, cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(l_XSX, d_XSX, sizeof(double) * n * p * p, cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(l_dySX, d_dySX, sizeof(double) * n * p * nparms, cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(l_dXSX, d_dXSX, sizeof(double) * n * p * p * nparms, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(l_dySy, d_dySy, sizeof(double) * n * nparms, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(l_dlogdet, d_dlogdet, sizeof(double) * n * nparms, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(l_ainfo, d_ainfo, sizeof(double) * n * nparms * nparms, cudaMemcpyDeviceToHost));
 
     /// Testing
     /*double* l_Liy0 = (double*)malloc(sizeof(double) * n * m);
@@ -1245,13 +1249,11 @@ void call_compute_pieces_gpu(
     //////////////////
 
 
-
+    
     ySy[0] = 0;
     logdet[0] = 0;
     for (int i = 0; i < n; i++) {
-        /*if (i < 50) {
-            printf("%f\n", l_ySy[i]);
-        }*/
+        
         ySy[0] += l_ySy[i];
         logdet[0] += l_logdet[i];
         for (int j = 0; j < p; j++) {
@@ -1268,8 +1270,15 @@ void call_compute_pieces_gpu(
                 //printf("%f ", l_dySX[i * p * nparms + j * nparms + k]);
             }
         }
-        //printf("%f\n", l_logdet[i]);
+        for (int j = 0; j < nparms; j++) {
+            dySy[j] += l_dySy[i * nparms + j];
+            dlogdet[j] += logdet[i * nparms + j];
+            for (int k = 0; k < nparms; k++) {
+                ainfo[j * nparms + k] += l_ainfo[i * nparms * nparms + j * nparms + k];
+            }
+        }
     }
+    
     //printf("m:%i\n", m);
     //arma::vec covparmsa(covparms, 3);
     //arma::mat locsa(locs, dim, n);
@@ -1325,6 +1334,7 @@ void call_compute_pieces_gpu(
     //printf("%f\n", l_logdet[i]);
     /*l_ySy = (double*)malloc(sizeof(double) * n);
     l_logdet = (double*)malloc(sizeof(double) * n);*/
+    
     l_ySX = (double*)calloc(p, sizeof(double));
     l_XSX = (double*)calloc(p * p, sizeof(double));
     l_dySX = (double*)calloc(p * nparms, sizeof(double));
@@ -1332,20 +1342,26 @@ void call_compute_pieces_gpu(
     l_dySy = (double*)calloc(nparms, sizeof(double));
     l_dlogdet = (double*)calloc(nparms, sizeof(double));
     l_ainfo = (double*)calloc(nparms * nparms, sizeof(double));
-
     double ySya = 0;
     double logdeta = 0;
+
+    // for (int i = 0; i < m; i++){
+    //     for (int j = 0 ; j < m; j++){
+    //         printf("%f", NNarray[i * m + j]);
+    //     }
+    //     printf("\n");
+    // }
+
     try {
-        compute_pieces_cpu(covparms[0], covparms[1], covparms[2],
-            locs, NNarray, y, X,
-            l_XSX, l_ySX, ySya, logdeta, l_dXSX, l_dySX, l_dySy, l_dlogdet, l_ainfo,
-            profbeta, grad_info,
-            m, m, p, nparms, dim);
+        // compute_pieces_cpu(covparms[0], covparms[1], covparms[2],
+        //     locs, NNarray, y, X,
+        //     l_XSX, l_ySX, ySya, logdeta, l_dXSX, l_dySX, l_dySy, l_dlogdet, l_ainfo,
+        //     profbeta, grad_info,
+        //     m, m, p, nparms, dim);
     }
     catch (std::exception& exc) {
         printf(exc.what());
     }
-    //printf("All good\n");
     ySy[0] += ySya;
     logdet[0] += logdeta;
     for (int j = 0; j < p; j++) {
@@ -1362,4 +1378,6 @@ void call_compute_pieces_gpu(
             //printf("%f ", l_dySX[i * p * nparms + j * nparms + k]);
         }
     }
+
+    
 }

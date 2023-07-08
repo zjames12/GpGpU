@@ -6,6 +6,11 @@
 
 using namespace Rcpp;
 
+#ifdef RCPP_USE_GLOBAL_ROSTREAM
+Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
+Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
+#endif
+
 // meanC
 double meanC(NumericVector x);
 RcppExport SEXP _GpGpU_meanC(SEXP xSEXP) {
@@ -27,6 +32,21 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type NNarray(NNarraySEXP);
     rcpp_result_gen = Rcpp::wrap(vecchia_Linv_gpu_isotropic_exponential(covparms, locs, NNarray));
+    return rcpp_result_gen;
+END_RCPP
+}
+// vecchia_profbeta_loglik_grad_info_gpu
+List vecchia_profbeta_loglik_grad_info_gpu(NumericVector covparms, NumericVector y, NumericMatrix X, const NumericMatrix locs, NumericMatrix NNarray);
+RcppExport SEXP _GpGpU_vecchia_profbeta_loglik_grad_info_gpu(SEXP covparmsSEXP, SEXP ySEXP, SEXP XSEXP, SEXP locsSEXP, SEXP NNarraySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type covparms(covparmsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type y(ySEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const NumericMatrix >::type locs(locsSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type NNarray(NNarraySEXP);
+    rcpp_result_gen = Rcpp::wrap(vecchia_profbeta_loglik_grad_info_gpu(covparms, y, X, locs, NNarray));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -999,6 +1019,7 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_GpGpU_meanC", (DL_FUNC) &_GpGpU_meanC, 1},
     {"_GpGpU_vecchia_Linv_gpu_isotropic_exponential", (DL_FUNC) &_GpGpU_vecchia_Linv_gpu_isotropic_exponential, 3},
+    {"_GpGpU_vecchia_profbeta_loglik_grad_info_gpu", (DL_FUNC) &_GpGpU_vecchia_profbeta_loglik_grad_info_gpu, 5},
     {"_GpGpU_sph_grad_xyz", (DL_FUNC) &_GpGpU_sph_grad_xyz, 2},
     {"_GpGpU_exponential_isotropic", (DL_FUNC) &_GpGpU_exponential_isotropic, 2},
     {"_GpGpU_d_exponential_isotropic", (DL_FUNC) &_GpGpU_d_exponential_isotropic, 2},
