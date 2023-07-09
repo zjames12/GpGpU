@@ -372,25 +372,25 @@ void compute_pieces_cpu(
 ) {
 
     
-   	printf("Inside\n");
+   	// printf("Inside\n");
 
-    /*arma::mat l_XSX = arma::mat(p, p, arma::fill::zeros);
-    arma::vec l_ySX = arma::vec(p, arma::fill::zeros);
-    double l_ySy = 0.0;
-    double l_logdet = 0.0;
-    arma::cube l_dXSX = arma::cube(p, p, nparms, arma::fill::zeros);
-    arma::mat l_dySX = arma::mat(p, nparms, arma::fill::zeros);
-    arma::vec l_dySy = arma::vec(nparms, arma::fill::zeros);
-    arma::vec l_dlogdet = arma::vec(nparms, arma::fill::zeros);
-    arma::mat l_ainfo = arma::mat(nparms, nparms, arma::fill::zeros);*/
-    printf("n: %f", variance);
+//     /*arma::mat l_XSX = arma::mat(p, p, arma::fill::zeros);
+//     arma::vec l_ySX = arma::vec(p, arma::fill::zeros);
+//     double l_ySy = 0.0;
+//     double l_logdet = 0.0;
+//     arma::cube l_dXSX = arma::cube(p, p, nparms, arma::fill::zeros);
+//     arma::mat l_dySX = arma::mat(p, nparms, arma::fill::zeros);
+//     arma::vec l_dySy = arma::vec(nparms, arma::fill::zeros);
+//     arma::vec l_dlogdet = arma::vec(nparms, arma::fill::zeros);
+//     arma::mat l_ainfo = arma::mat(nparms, nparms, arma::fill::zeros);*/
+    // printf("n: %f", variance);
     for (int i = 0; i < n; i++) {
-        printf("%i", i);
+        // printf("%i", i);
         clock_t start = clock();
         int bsize = std::min(i + 1, m);
-        if (bsize == m) {
-            continue;
-        }
+        // if (bsize == m) {
+        //     continue;
+        // }
         double* locsub = (double*)malloc(sizeof(double) * bsize * dim);
         double* ysub = (double*)malloc(sizeof(double) * bsize );
         double* X0 = (double*)malloc(sizeof(double) * bsize * p);
@@ -405,7 +405,7 @@ void compute_pieces_cpu(
                 }
             }
         }
-        
+       
         clock_t end = clock();
         // if (i == 10000) {
         //     printf("Substituting NN + scaling: %i\n", end - start);
@@ -436,6 +436,7 @@ void compute_pieces_cpu(
                 }
             }
         }
+    
         end = clock();
         /*if (i == 40) {
             printf("GPU covmat\n");
@@ -452,7 +453,7 @@ void compute_pieces_cpu(
         
         start = clock();
         double* dcovmat = (double*)malloc(sizeof(double) * bsize * bsize * nparms);
-        
+    
         if (grad_info) {
             // calculate derivatives
             //arma::cube dcovmat = arma::cube(n, n, covparms.n_elem, fill::zeros);
@@ -483,6 +484,7 @@ void compute_pieces_cpu(
             }
 
         }
+    
         // end = clock();
         // if (i == 10000) {
         //     printf("Covariance derivative: %i\n", end - start);
@@ -551,10 +553,11 @@ void compute_pieces_cpu(
         
         // do solves with X and y
         double* LiX0 = (double*)malloc(sizeof(double) * bsize * p);
+    
 
         if (profbeta) {
             start = clock();
-            // LiX0 = forward_solve_mat(cholmat, X0, m, p);
+            // LiX0 = forward_solve_mat(covmat, X0, m, p);
             for (int k = 0; k < p; k++) {
                 LiX0[0 * p + k] = X0[0 * p + k] / covmat[0 * bsize + 0];
             }
@@ -563,9 +566,9 @@ void compute_pieces_cpu(
                 for (int k = 0; k < p; k++) {
                     double dd = 0.0;
                     for (int j = 0; j < h; j++) {
-                        dd += covmat[h * bsize + j] * LiX0[j * bsize + k];
+                        dd += covmat[h * bsize + j] * LiX0[j * p + k];
                     }
-                    LiX0[h * bsize + k] = (X0[h * p + k] - dd) / covmat[h * bsize + h];
+                    LiX0[h * p + k] = (X0[h * p + k] - dd) / covmat[h * bsize + h];
                 }
             }
             // end = clock();
@@ -574,11 +577,13 @@ void compute_pieces_cpu(
             // }
 
         }
+    
         for (int j = 0; j < bsize; j++) {
             for (int k = j + 1; k < bsize; k++) {
                 covmat[j * bsize + k] = 0.0;
             }
         }
+        
         
         //arma::vec Liy0 = solve( trimatl(cholmat), ysub );
         //double* Liy0 = forward_solve(cholmat, ysub, m);
@@ -609,6 +614,7 @@ void compute_pieces_cpu(
 
         temp = Liy0[bsize - 1];
         ySy += temp * temp;
+    
 
         
         if (profbeta) {
@@ -630,6 +636,7 @@ void compute_pieces_cpu(
             //     start = clock();
             // }
         }
+        
         if (grad_info) {
             // gradient objects
             // LidSLi3 is last column of Li * (dS_j) * Lit for 1 parameter i
@@ -766,6 +773,60 @@ void compute_pieces_cpu(
                 
             }
             else {
+                // for(int j=0; j<nparms; j++){
+                //     arma::mat LidSLi = forward_solve_mat( cholmat, dcovmat.slice(j) );
+                //     LidSLi = forward_solve_mat( cholmat, LidSLi.t() );
+                //     (l_dXSX).slice(j) += LiX0.t() *  LidSLi * LiX0; 
+                //     (l_dySy)(j) += as_scalar( Liy0.t() * LidSLi * Liy0 );
+                //     (l_dySX).col(j) += ( ( Liy0.t() * LidSLi ) * LiX0 ).t();
+                //     (l_dlogdet)(j) += trace( LidSLi );
+                //     LidSLi2.col(j) = LidSLi;
+                // }
+            
+                // // fisher information object
+                // for(int i=0; i<nparms; i++){ for(int j=0; j<i+1; j++){
+                //     (l_ainfo)(i,j) += 0.5*accu( LidSLi2.col(i) % LidSLi2.col(j) ); 
+                // }}
+                /////////////////////
+
+                // for(int j=0; j<nparms; j++){
+                //     //arma::mat LidSLi = forward_solve_mat( cholmat, dcovmat.slice(j) );
+                //     double* LidSLi = (double*) malloc(bsize * bsize * sizeof(double));
+                //     for (int k = 0; k < bsize; k++) {
+                //         LidSLi[0 * bsize + k] = dcovmat[0 * bsize * bsize + k * bsize + j] / covmat[0 * bsize + 0];
+                //     }
+                //     for (int h = 1; h < bsize; h++) {
+                //         for (int k = 0; k < bsize; k++) {
+                //             double dd = 0.0;
+                //             for (int j = 0; j < h; j++) {
+                //                 dd += covmat[h * bsize + j] * LidSLi[j * bsize + k];
+                //             }
+                //             LidSLi[h * p + k] = (dcovmat[h * bsize * bsize + k * bsize + j] - dd) / covmat[h * bsize + h];
+                //         }
+                //     }
+                //     //LidSLi = forward_solve_mat( cholmat, LidSLi.t() );
+                //     double* LidSLi2 = (double*) malloc(bsize * bsize * sizeof(double));
+                //     for (int k = 0; k < bsize; k++) {
+                //         LidSLi2[0 * bsize + k] = LidSLi[k * bsize + 0] / covmat[0 * bsize + 0];
+                //     }
+                //     for (int h = 1; h < bsize; h++) {
+                //         for (int k = 0; k < bsize; k++) {
+                //             double dd = 0.0;
+                //             for (int j = 0; j < h; j++) {
+                //                 dd += covmat[h * bsize + j] * LidSLi2[j * bsize + k];
+                //             }
+                //             LidSLi2[h * p + k] = (LidSLi[k * bsize + h] - dd) / covmat[h * bsize + h];
+                //         }
+                //     }
+                //     //(l_dXSX).slice(j) += LiX0.t() *  LidSLi * LiX0; 
+                //     for (r = 0; r < p; r++){
+                //         for (t = 0; t < p; t++){
+                //             dXSX[]
+                //         }
+                //     }
+
+                // }
+
 
             }
         }
@@ -863,27 +924,7 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
         //int k, q, j;
         double temp2;
         double diff;
-        /*for (int q = 0; q < m; q++) {
-            diff = 0;
-            temp2 = covmat[i * m * m + q * m + q];
-            for (int k = 0; k < m; k++) {
-                if (k < q) {
-                    temp = covmat[i * m * m + q * m + k];
-                    diff -= temp * temp;
-                }
-                else if (k == q) {
-                    covmat[i * m * m + q * m + q] = sqrt(covmat[i * m * m + q * m + q] + diff);
-                    diff = 0;
-                }
-                else {
-                    diff = 0;
-                    for (int r = 0; r < q; r++) {
-                        diff += covmat[i * m * m + q * m + r] * covmat[i * m * m + k * m + r];
-                    }
-                    covmat[i * m * m + k * m + q] = (covmat[i * m * m + k * m + q] - diff) / temp2;
-                }
-            }
-        }*/
+    
         int r, j, k, l;
         int retval = 1;
         for (r = 0; r < m + 0; r++) {
@@ -1335,15 +1376,15 @@ void call_compute_pieces_gpu(
     /*l_ySy = (double*)malloc(sizeof(double) * n);
     l_logdet = (double*)malloc(sizeof(double) * n);*/
     
-    l_ySX = (double*)calloc(p, sizeof(double));
-    l_XSX = (double*)calloc(p * p, sizeof(double));
-    l_dySX = (double*)calloc(p * nparms, sizeof(double));
-    l_dXSX = (double*)calloc(p * p * nparms, sizeof(double));
-    l_dySy = (double*)calloc(nparms, sizeof(double));
-    l_dlogdet = (double*)calloc(nparms, sizeof(double));
-    l_ainfo = (double*)calloc(nparms * nparms, sizeof(double));
-    double ySya = 0;
-    double logdeta = 0;
+    // l_ySX = (double*)calloc(p, sizeof(double));
+    // l_XSX = (double*)calloc(p * p, sizeof(double));
+    // l_dySX = (double*)calloc(p * nparms, sizeof(double));
+    // l_dXSX = (double*)calloc(p * p * nparms, sizeof(double));
+    // l_dySy = (double*)calloc(nparms, sizeof(double));
+    // l_dlogdet = (double*)calloc(nparms, sizeof(double));
+    // l_ainfo = (double*)calloc(nparms * nparms, sizeof(double));
+    // double ySya = 0;
+    // double logdeta = 0;
 
     // for (int i = 0; i < m; i++){
     //     for (int j = 0 ; j < m; j++){
@@ -1352,32 +1393,38 @@ void call_compute_pieces_gpu(
     //     printf("\n");
     // }
 
-    try {
-        // compute_pieces_cpu(covparms[0], covparms[1], covparms[2],
-        //     locs, NNarray, y, X,
-        //     l_XSX, l_ySX, ySya, logdeta, l_dXSX, l_dySX, l_dySy, l_dlogdet, l_ainfo,
-        //     profbeta, grad_info,
-        //     m, m, p, nparms, dim);
-    }
-    catch (std::exception& exc) {
-        printf(exc.what());
-    }
-    ySy[0] += ySya;
-    logdet[0] += logdeta;
-    for (int j = 0; j < p; j++) {
-        ySX[j] += l_ySX[j];
-        for (int k = 0; k < p; k++) {
-            XSX[j * p + k] += l_XSX[j * m + k];
-            for (int l = 0; l < nparms; l++) {
-                dXSX[j * p * nparms + k * nparms + l] += l_dXSX[j * p * nparms + nparms * k + l];
-                //dXSX[j * p * nparms + k * nparms + l] += 0;
-            }
-        }
-        for (int k = 0; k < nparms; k++) {
-            dySX[j * nparms + k] += l_dySX[j * nparms + k];
-            //printf("%f ", l_dySX[i * p * nparms + j * nparms + k]);
-        }
-    }
+    // try {
+    //     compute_pieces_cpu(covparms[0], covparms[1], covparms[2],
+    //         locs, NNarray, y, X,
+    //         l_XSX, l_ySX, ySya, logdeta, l_dXSX, l_dySX, l_dySy, l_dlogdet, l_ainfo,
+    //         profbeta, grad_info,
+    //         m, m, p, nparms, dim);
+    // }
+    // catch (std::exception& exc) {
+    //     printf(exc.what());
+    // }
+    // ySy[0] += ySya;
+    // logdet[0] += logdeta;
+    // for (int j = 0; j < p; j++) {
+    //     ySX[j] += l_ySX[j];
+    //     for (int k = 0; k < p; k++) {
+    //         XSX[j * p + k] += l_XSX[j * m + k];
+    //         for (int l = 0; l < nparms; l++) {
+    //             dXSX[j * p * nparms + k * nparms + l] += l_dXSX[j * p * nparms + nparms * k + l];
+    //             //dXSX[j * p * nparms + k * nparms + l] += 0;
+    //         }
+    //     }
+    //     for (int k = 0; k < nparms; k++) {
+    //         dySX[j * nparms + k] += l_dySX[j * nparms + k];
+    //         //printf("%f ", l_dySX[i * p * nparms + j * nparms + k]);
+    //     }
+    // }
+
+    // for (int i = 0; i < nparms; i++) {
+    //     for (int j = 0; j < nparms; j++) {
+    //         ainfo[i * nparms + j] += l_ainfo[i * nparms + j];
+    //     }
+    // }
 
     
 }
