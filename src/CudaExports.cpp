@@ -726,3 +726,29 @@ List vecchia_profbeta_loglik_grad_info_gpu(
     return ret;
         
 }
+
+// [[Rcpp::export]]
+List vecchia_profbeta_loglik_gpu( 
+    NumericVector covparms, 
+    NumericVector y,
+    NumericMatrix X,
+    const NumericMatrix locs,
+    NumericMatrix NNarray ){
+    
+    NumericVector ll(1);
+    NumericVector grad( covparms.length() );
+    NumericVector betahat( X.ncol() );
+    NumericMatrix info( covparms.length(), covparms.length() );
+    NumericMatrix betainfo( X.ncol(), X.ncol() );
+
+    // this function calls arma_onepass_compute_pieces
+    // then synthesizes the result into loglik, beta, grad, info, betainfo
+    exponential_isotropic_likelihood(covparms, locs, NNarray, y, X,
+        &ll, &betahat, &grad, &info, &betainfo, true, false 
+    );
+    
+    List ret = List::create( Named("loglik") = ll, Named("betahat") = betahat,
+        Named("betainfo") = betainfo );
+    return ret;
+        
+}
