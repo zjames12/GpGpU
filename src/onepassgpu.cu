@@ -1106,7 +1106,7 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
                 ///////////////
                 /*(l_dySy)(j) += as_scalar(2.0 * s1 * Liy0(i2) -
                     LidSLi3(i2) * Liy0(i2) * Liy0(i2));*/
-                dySy[i * nparms + j] = (2 * s1 - temp4 * temp) * temp;
+                dySy[i * nparms + j] = (2.0 * s1 - temp4 * temp) * temp;
 
                 /*(l_dySX).col(j) += (s1 * LiX0.rows(i2) + (v1 * Liy0(i2)).t() -
                     as_scalar(LidSLi3(i2)) * LiX0.rows(i2) * as_scalar(Liy0(i2))).t();*/
@@ -1142,7 +1142,7 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
                             LidSLi2.rows(i2).col(h));*/
                     double s = 0;
                     for (int l = 0; l < m; l++) {
-                        s += LidSLi2[i * m * nparms + l * m + h] * LidSLi2[i * m * nparms + l * m + j];
+                        s += LidSLi2[i * m * nparms + l * nparms + h] * LidSLi2[i * m * nparms + l * nparms + j];
                     }
                     ainfo[i * nparms * nparms + h * nparms + j] = s - 0.5 * LidSLi2[i * m * nparms + (m - 1) * nparms + j] * temp2;
                 }
@@ -1313,7 +1313,7 @@ void call_compute_pieces_gpu(
         }
         for (int j = 0; j < nparms; j++) {
             dySy[j] += l_dySy[i * nparms + j];
-            dlogdet[j] += logdet[i * nparms + j];
+            dlogdet[j] += l_dlogdet[i * nparms + j];
             for (int k = 0; k < nparms; k++) {
                 ainfo[j * nparms + k] += l_ainfo[i * nparms * nparms + j * nparms + k];
             }

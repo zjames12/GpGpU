@@ -548,9 +548,9 @@ void exponential_isotropic_likelihood(
 
     double* dXSXf = (double*)calloc(p * p * nparms, sizeof(double));
     double* dySXf = (double*)calloc(p * nparms, sizeof(double));
-    double* dySyf = (double*)malloc(sizeof(double) * nparms);
-    double* dlogdetf = (double*)malloc(sizeof(double) * nparms);
-    double* ainfof = (double*)malloc(sizeof(double) * nparms * nparms);
+    double* dySyf = (double*)calloc(nparms, sizeof(double));
+    double* dlogdetf = (double*)calloc(nparms, sizeof(double));
+    double* ainfof = (double*)calloc(nparms * nparms, sizeof(double));
 
     call_compute_pieces_gpu(covparmsl, /*covfun_name,*/ locsl, NNarrayl, yl, Xl,
         XSXf, ySXf, &ySy, &logdet,
@@ -669,35 +669,6 @@ void exponential_isotropic_likelihood(
     }}
     }
     
-    // double* fabeta = (double*)calloc(sizeof(double), p);
-    // double* fbetahat = (double*)calloc(sizeof(double), p);
-    
-    // // if (profbeta) {
-    // // 	gauss_eliminate(XSXf, ySXf, fabeta, p);
-    // // }
-    
-    // for (int j = 0; j < p; j++) { fbetahat[j] = fabeta[j]; };
-    // /*double sig2 = (ySy - 2.0 * as_scalar(ySX.t() * abeta) +
-    //     as_scalar(abeta.t() * XSX * abeta)) / n;*/
-    // double fsig2 = ySy;
-    // double temp = 0;
-    // for (int i = 0; i < p; i++) {
-    //     temp += ySXf[i] * fabeta[i];
-    // }
-    // //printf("temp: %f\n", temp);
-    // fsig2 -= 2.0 * temp;
-    // temp = 0;
-    // for (int i = 0; i < p; i++) {
-    //     for (int j = 0; j < p; j++) {
-    //         temp += XSXf[i * p + j] * fabeta[i] * fabeta[j];
-    //     }
-    // }
-    // fsig2 += temp;
-    // fsig2 /= n;
-    // double fll = -0.5 * (n * std::log(2.0 * M_PI) + logdet + n * fsig2);
-    // // List ret = List::create( Named("loglik") = fll );
-    // // return ret;
-    // return fll;
 
 }
 
