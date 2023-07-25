@@ -86,3 +86,6 @@ GpGpU.so : $(OBJECTS)
 
 onepassgpu.o : onepassgpu.cu
 	$(NVCC) $(NVCC_FLAGS) -I$(CUDA_INC) $< -c -I$(RCPP_INC) -I$(RCPP_ARMA_INC) -I$(BH_INC)
+
+# matrix_mult.o : matrix_mult.cu
+# 	$(NVCC) $(NVCC_FLAGS) -I$(CUDA_INC) $< -c -I$(RCPP_INC) -I$(RCPP_ARMA_INC) -I$(BH_INC)

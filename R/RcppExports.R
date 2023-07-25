@@ -17,6 +17,10 @@ vecchia_profbeta_loglik_gpu <- function(covparms, y, X, locs, NNarray) {
     .Call('_GpGpU_vecchia_profbeta_loglik_gpu', PACKAGE = 'GpGpU', covparms, y, X, locs, NNarray)
 }
 
+Linv_mult_gpu <- function(Linv, z, NNarray) {
+    .Call('_GpGpU_Linv_mult_gpu', PACKAGE = 'GpGpU', Linv, z, NNarray)
+}
+
 #' compute gradient of spherical harmonics functions
 #' 
 #' @param xyz xyz coordinates of locations on sphere

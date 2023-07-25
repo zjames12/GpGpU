@@ -65,6 +65,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// Linv_mult_gpu
+NumericVector Linv_mult_gpu(NumericMatrix Linv, NumericVector z, IntegerMatrix NNarray);
+RcppExport SEXP _GpGpU_Linv_mult_gpu(SEXP LinvSEXP, SEXP zSEXP, SEXP NNarraySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type Linv(LinvSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type z(zSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type NNarray(NNarraySEXP);
+    rcpp_result_gen = Rcpp::wrap(Linv_mult_gpu(Linv, z, NNarray));
+    return rcpp_result_gen;
+END_RCPP
+}
 // sph_grad_xyz
 arma::cube sph_grad_xyz(arma::mat xyz, int Lmax);
 RcppExport SEXP _GpGpU_sph_grad_xyz(SEXP xyzSEXP, SEXP LmaxSEXP) {
@@ -1036,6 +1049,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GpGpU_vecchia_Linv_gpu_isotropic_exponential", (DL_FUNC) &_GpGpU_vecchia_Linv_gpu_isotropic_exponential, 3},
     {"_GpGpU_vecchia_profbeta_loglik_grad_info_gpu", (DL_FUNC) &_GpGpU_vecchia_profbeta_loglik_grad_info_gpu, 5},
     {"_GpGpU_vecchia_profbeta_loglik_gpu", (DL_FUNC) &_GpGpU_vecchia_profbeta_loglik_gpu, 5},
+    {"_GpGpU_Linv_mult_gpu", (DL_FUNC) &_GpGpU_Linv_mult_gpu, 3},
     {"_GpGpU_sph_grad_xyz", (DL_FUNC) &_GpGpU_sph_grad_xyz, 2},
     {"_GpGpU_exponential_isotropic", (DL_FUNC) &_GpGpU_exponential_isotropic, 2},
     {"_GpGpU_d_exponential_isotropic", (DL_FUNC) &_GpGpU_d_exponential_isotropic, 2},

@@ -96,6 +96,9 @@ void call_compute_pieces_gpu(
     int dim
 );
 
+extern "C"
+double* call_Linv_mult_gpu(double* Linv, double* z, double* NNarray, int n, int m);
+
 arma::mat exponential_isotropic2(arma::vec covparms, arma::mat locs ){
 
     int dim = locs.n_cols;
@@ -722,4 +725,34 @@ List vecchia_profbeta_loglik_gpu(
         Named("betainfo") = betainfo );
     return ret;
         
+}
+
+// [[Rcpp::export]]
+NumericVector Linv_mult_gpu(NumericMatrix Linv, NumericVector z, IntegerMatrix NNarray) {
+    int n = z.length();
+    int m = NNarray.ncol();
+
+    double* Linvl = (double*)malloc(sizeof(double) * n * m);
+    double* NNarrayl = (double*) calloc(n * m, sizeof(double));//malloc(sizeof(double) * n * m);
+    double* zl = (double*)malloc(sizeof(double) * n);
+    
+    for (int i = 0; i < n; i++) {
+        zl[i] = z[i];
+        for (int j = 0; j < m; j++) {
+            Linvl[i * m + j] = Linv(i, j);
+            if (j <= i){
+                NNarrayl[i * m + j] = NNarray(i, j);
+            }
+        }
+    }
+
+    double* x = call_Linv_mult_gpu(Linvl, zl, NNarrayl, n, m);
+
+    NumericVector ret(n);
+
+    for (int i = 0; i < n; i++) {
+        ret[i] = x[i];
+    }
+
+    return ret;
 }

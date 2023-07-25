@@ -1428,3 +1428,43 @@ void call_compute_pieces_gpu(
 
     
 }
+
+__global__ void call_Linv_mult(double* Linv, double* NNarray, double* z, double* x, int n, int m){
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n){
+        int bsize = min(i+1,m);
+        double temp = 0;
+        for(int j=0; j<bsize; j++){
+            temp += z[ static_cast<int>(NNarray[i * m + j]) - 1 ] * Linv[i * m + j];
+        }
+        x[i] = temp;
+    }
+}
+
+extern "C"
+double* call_Linv_mult_gpu(double* Linv, double* z, double* NNarray, int n, int m){
+    double* d_Linv;
+    double* d_NNarray;
+    double* d_z;
+    double* d_x;
+
+    gpuErrchk(cudaMalloc((void**)&d_Linv, sizeof(double) * n * m));
+    gpuErrchk(cudaMalloc((void**)&d_NNarray, sizeof(double) * n * m));
+    gpuErrchk(cudaMalloc((void**)&d_z, sizeof(double) * n));
+    gpuErrchk(cudaMalloc((void**)&d_x, sizeof(double) * n));
+
+    gpuErrchk(cudaMemcpy(d_Linv, Linv, sizeof(double) * n * m, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(d_NNarray, NNarray, sizeof(double) * n * m, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(d_z, z, sizeof(double) * n, cudaMemcpyHostToDevice));
+
+    int grid_size = 64;
+    int block_size = ((n + grid_size) / grid_size);
+
+    call_Linv_mult << <block_size, grid_size >> > (d_Linv, d_NNarray, d_z, d_x, n, m);
+    cudaDeviceSynchronize();
+
+    double* x = (double*)malloc(sizeof(double) * n);
+    gpuErrchk(cudaMemcpy(x, d_x, sizeof(double) * n, cudaMemcpyDeviceToHost));
+
+    return x;
+}
