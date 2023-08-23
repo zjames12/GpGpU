@@ -190,6 +190,14 @@ __global__ void call_vecchia_Linv_gpu(double* locs, double* NNarray,
     if (i >= n || i < start_ind) {
         return;
     }
+    // double cov[1];
+    // if (m <= 16) {
+    //     double cov[16 * 16];
+    // } else {
+    //     double cov[32 * 32];
+    // }
+    double cov[100 * 100];
+    
     /*__shared__ double ls[16 * 21 * 2];
     __shared__ double cov[16 * 21 * 21];*/
     
@@ -214,14 +222,14 @@ __global__ void call_vecchia_Linv_gpu(double* locs, double* NNarray,
                 ls[threadIdx.x * m * dim + i1 * dim + 1] - ls[threadIdx.x * m * dim + i2 * dim + 1]);*/
             // calculate covariance
             if (i1 == i2) {
-                covmat[i * m * m + i2 * m + i1] = variance * (expf(-d) + nugget);
+                cov[i2 * m + i1] = variance * (expf(-d) + nugget);
                 //cov[threadIdx.x * m * m + i2 * m + i1] = variance * (exp(-d) + nugget);
             }
             else {
-                covmat[i * m * m + i2 * m + i1] = variance * expf(-d);
+                cov[i2 * m + i1] = variance * expf(-d);
                 /*cov[threadIdx.x * m * m + i2 * m + i1] = variance * exp(-d);
                 cov[threadIdx.x * m * m + i1 * m + i2] = cov[threadIdx.x * m * m + i2 * m + i1];*/
-                covmat[i * m * m + i1 * m + i2] = covmat[i * m * m + i2 * m + i1];
+                cov[i1 * m + i2] = cov[i2 * m + i1];
             }
         }
     }
@@ -239,21 +247,21 @@ __global__ void call_vecchia_Linv_gpu(double* locs, double* NNarray,
         for (k = 0; k < m; k++) {
             if (k < q) {
                 //temp = cov[threadIdx.x * m * m + k * m + q];
-                temp = covmat[i * m * m + k * m + q];
+                temp = cov[k * m + q];
                 diff -= temp * temp;
             }
             else if (k == q) {
                 //cov[threadIdx.x * m * m + q * m + q] = sqrt(cov[threadIdx.x * m * m + q * m + q] + diff);
-                covmat[i * m * m + q * m + q] = sqrt(covmat[i * m * m + q * m + q] + diff);;
+                cov[q * m + q] = sqrt(cov[q * m + q] + diff);;
                 diff = 0;
             }
             else {
                 diff = 0;
                 for (int p = 0; p < q; p++) {
-                    diff += covmat[i * m * m + p * m + q] * covmat[i * m * m + p * m + k];
+                    diff += cov[p * m + q] * cov[p * m + k];
                     //diff += cov[threadIdx.x * m * m + p * m + q] * cov[threadIdx.x * m * m + p * m + k];
                 }
-                covmat[i * m * m + q * m + k] = (covmat[i * m * m + q * m + k] - diff ) / covmat[i * m * m + q * m + q];
+                cov[q * m + k] = (cov[q * m + k] - diff ) / cov[q * m + q];
                 //cov[threadIdx.x * m * m + q * m + k] = (cov[threadIdx.x * m * m + q * m + k] - diff) / cov[threadIdx.x * m * m + q * m + q];
             }
         }
@@ -271,14 +279,14 @@ __global__ void call_vecchia_Linv_gpu(double* locs, double* NNarray,
     for (int q = m - 1; q >= 0; q--) {
         double sum = 0.0;
         for (int j = q + 1; j < m; j++) {
-            sum += covmat[i * m * m + q * m + j] * NNarray[i * m + m - 1 - j];
+            sum += cov[q * m + j] * NNarray[i * m + m - 1 - j];
             //sum += cov[threadIdx.x * m * m + q * m + j] * NNarray[i * m + m - 1 - j];
         }
-        NNarray[i * m + m - 1 - q] = (b - sum) / covmat[i * m * m + q * m + q];
+        NNarray[i * m + m - 1 - q] = (b - sum) / cov[q * m + q];
         //NNarray[i * m + m - 1 - q] = (b - sum) / cov[threadIdx.x * m * m + q * m + q];
         b = 0;
     }
-    clock_t end = clock();
+    // clock_t end = clock();
     /*if (i == 21) {
         printf("Cholesky + solve cycles %i\n", (int)(end - start));
     }*/
