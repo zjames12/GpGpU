@@ -97,7 +97,13 @@
 fit_model <- function(y, locs, X = NULL, covfun_name = "matern_isotropic",
     NNarray = NULL, start_parms = NULL, reorder = TRUE, group = TRUE,
     m_seq = c(10,30), max_iter = 40, fixed_parms = NULL,
-    silent = FALSE, st_scale = NULL, convtol = 1e-4){
+    silent = FALSE, st_scale = NULL, convtol = 1e-4, gpu = FALSE){
+	
+	if (gpu && !covfun_name %in% c("exponential_isotropic")){
+		stop("covariance function not supported on gpu.")
+	} else if (gpu && group) {
+		stop("group calculation not supported on gpu")
+	}
 
     n <- length(y)
 
@@ -286,6 +292,27 @@ fit_model <- function(y, locs, X = NULL, covfun_name = "matern_isotropic",
                 
             }
 
+        } else if (gpu) {
+
+            likfun <- function(logparms){
+
+                lp <- rep(NA,length(start_parms))
+                lp[active] <- logparms
+                lp[!active] <- invlink_startparms[!active]
+                
+                likobj <- vecchia_profbeta_loglik_grad_info_gpu(
+                    link(lp),yord,Xord,locsord,NNarray[,1:(m+1)])
+                likobj$loglik <- -likobj$loglik - pen(link(lp))
+                likobj$grad <- -c(likobj$grad)*dlink(lp) -
+                    dpen(link(lp))*dlink(lp)
+                likobj$info <- likobj$info*outer(dlink(lp),dlink(lp)) -
+                    ddpen(link(lp))*outer(dlink(lp),dlink(lp))
+                likobj$grad <- likobj$grad[active]
+                likobj$info <- likobj$info[active,active]
+                return(likobj)
+            }
+        
+			
         } else {
 
             likfun <- function(logparms){
