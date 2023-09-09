@@ -99,6 +99,7 @@ __global__ void create_nn_array(int* indicies, int* NNarray, int n, int m) {
     NNarray[i * m + j] = indicies[INDEX(i, j)];
 }
 
+extern "C"
 int* nearest_neighbors(double* locs, int m, int n, int dim) {
 
     double *d_locs, *d_dist;

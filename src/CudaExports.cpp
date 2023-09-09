@@ -14,6 +14,22 @@ double* vecchia_Linv_gpu_outer(
     int m,
     int dim);
 
+extern "C"
+int* nearest_neighbors(double* locs, int m, int n, int dim);
+
+// [[Rcpp::export]]
+arma::mat nearest_neighbors_gpu(arma::mat locs, int m){
+    int n = locs.n_rows;
+    int dim = locs.n_cols;
+
+    locs = locs.t();
+    double* locsl = locs.memptr();
+
+    int* NNarrayl = nearest_neighbors(locsl, m, n, dim);
+    arma::mat NNarray = arma::mat(&NNarrayl[0], m + 1, n, false);
+    return NNarray.t();
+}
+
 // [[Rcpp::export]]
 double meanC(NumericVector x) {
   int n = x.size();
