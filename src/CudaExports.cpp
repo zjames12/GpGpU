@@ -18,7 +18,7 @@ extern "C"
 int* nearest_neighbors(double* locs, int m, int n, int dim);
 
 // [[Rcpp::export]]
-arma::mat nearest_neighbors_gpu(arma::mat locs, int m){
+NumericMatrix nearest_neighbors_gpu(arma::mat locs, int m){
     int n = locs.n_rows;
     int dim = locs.n_cols;
 
@@ -26,8 +26,14 @@ arma::mat nearest_neighbors_gpu(arma::mat locs, int m){
     double* locsl = locs.memptr();
 
     int* NNarrayl = nearest_neighbors(locsl, m, n, dim);
-    arma::mat NNarray = arma::mat(&NNarrayl[0], m + 1, n, false);
-    return NNarray.t();
+    // arma::mat NNarray = arma::mat(&NNarrayl[0], m + 1, n, false);
+    NumericMatrix NNarray(n, m + 1);
+	for (int i = 0; i < n; i++) {
+		for (int j = 0; j < m + 1; j++){
+			NNarray(i, j) = NNarrayl[i * (m + 1) + j];
+		}
+	}
+	return NNarray;
 }
 
 // [[Rcpp::export]]

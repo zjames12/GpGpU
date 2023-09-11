@@ -38,13 +38,13 @@ all : GpGpU.so
 GpGpU.so : $(OBJECTS)
 
 %.o : %.cpp $(cpp_sources)
-      $(CXX) $< -c -v -fPIC -I$(R_INC) -I$(RCPP_INC) -I$(RCPP_ARMA_INC) -I$(BH_INC)
+	$(CXX) $< -c -v -fPIC -I$(R_INC) -I$(RCPP_INC) -I$(RCPP_ARMA_INC) -I$(BH_INC)
 
 onepassgpu.o : onepassgpu.cu
-      $(NVCC) $(NVCC_FLAGS) -I$(CUDA_INC) $< -c -v -Xcompiler -fpic -I$(RCPP_INC) -I$(RCPP_ARMA_INC) -I$(BH_INC)
+	$(NVCC) $(NVCC_FLAGS) -I$(CUDA_INC) $< -c -v -Xcompiler -fpic -I$(RCPP_INC) -I$(RCPP_ARMA_INC) -I$(BH_INC)
 
 nearest_neighbor_functions.o : nearest_neighbor_functions.cu
-      $(NVCC) $(NVCC_FLAGS) -I$(CUDA_INC) $< -c -v -Xcompiler -fpic -I$(RCPP_INC) -I$(RCPP_ARMA_INC) -I$(BH_INC)
+	$(NVCC) $(NVCC_FLAGS) -I$(CUDA_INC) $< -c -v -Xcompiler -fpic -I$(RCPP_INC) -I$(RCPP_ARMA_INC) -I$(BH_INC)
 
 ############################################################
 ############################################################
