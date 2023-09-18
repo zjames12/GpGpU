@@ -74,15 +74,41 @@ __device__ int partition(double* dist, int* indicies, int left, int right, int r
     return storeIndex;
 }
 
+__device__ int hoare_partition(double* dist, int* indicies, int lo, int hi, int row, int pivotIndex) {
+  double pivot = dist[INDEX(row, (hi - lo)/2 + lo)];
+  int i = lo - 1;
+  int j = hi + 1;
+  while (i < j) {
+    do {
+      i++;
+    } while (dist[INDEX(row, i)] < pivot);
+    do {
+      j--;
+    }
+    while (dist[INDEX(row, j)] > pivot);
+
+    if (i >= j){
+      return j;
+    }
+    double temp = dist[INDEX(row, i)];
+    dist[INDEX(row, i)] = dist[INDEX(row, j)];
+    dist[INDEX(row, j)] = temp;
+
+    int temp2 = indicies[INDEX(row, i)];
+    indicies[INDEX(row, i)] = indicies[INDEX(row, j)];
+    indicies[INDEX(row, j)] = temp2;
+  }
+  return -1;
+}
 __device__ void select(double* dist, int* indicies, int row, int left, int right, int k){
     int pivotIndex;
     while (left < right) {
         pivotIndex = (left + right) / 2;
-        pivotIndex = partition(dist, indicies, left, right, row, pivotIndex);
+        pivotIndex = hoare_partition(dist, indicies, left, right, row, pivotIndex);
         if (k == pivotIndex) {
             return;
         } else if (k < pivotIndex) {
-            right = pivotIndex - 1;
+            right = pivotIndex;
         } else {
             left = pivotIndex + 1;
         }
