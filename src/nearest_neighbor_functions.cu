@@ -46,12 +46,12 @@ __device__ int partition(double* dist, int* indicies, int left, int right, int r
     double pivotValue = dist[INDEX(row, pivotIndex)];
     dist[INDEX(row, pivotIndex)] = dist[INDEX(row, right)];
     dist[INDEX(row, right)] = pivotValue;
-	
-	int temp3 = indicies[INDEX(row, pivotIndex)];	
-	indicies[INDEX(row, pivotIndex)] = indicies[INDEX(row, right)];
+
+  	int temp3 = indicies[INDEX(row, pivotIndex)];
+  	indicies[INDEX(row, pivotIndex)] = indicies[INDEX(row, right)];
     indicies[INDEX(row, right)] = temp3;
 
-	int storeIndex = left;
+  	int storeIndex = left;
     for (int i = left; i < right; i++){
         if (dist[INDEX(row, i)] < pivotValue) {
             double temp = dist[INDEX(row, i)];
@@ -61,7 +61,7 @@ __device__ int partition(double* dist, int* indicies, int left, int right, int r
             int temp2 = indicies[INDEX(row, i)];
             indicies[INDEX(row, i)] = indicies[INDEX(row, storeIndex)];
             indicies[INDEX(row, storeIndex)] = temp2;
-			storeIndex++;
+			      storeIndex++;
         }
     }
     double temp = dist[INDEX(row, right)];
@@ -181,10 +181,10 @@ int* nearest_neighbors(double* locs, int m, int n, int dim) {
     create_nn_array<<<numBlocks2 , threadsPerBlock3>>>(d_indicies, d_NNarray, n, m);
 	// create_nn_array2<<<numBlocks2 , threadsPerBlock3>>>(d_dist, d_NNarray, n, m);
 	cudaDeviceSynchronize();
-	
+
 	int* NNarray = (int*) malloc(sizeof(int) * n * (m + 1));
     gpuErrchk2(cudaMemcpy(NNarray, d_NNarray, sizeof(int) * n * (m + 1), cudaMemcpyDeviceToHost));
-	
+
 	// double* NNarray = (double*) malloc(sizeof(double) * n * (m + 1));
 	// gpuErrchk2(cudaMemcpy(NNarray, d_dist, sizeof(double) * n * (m + 1), cudaMemcpyDeviceToHost));
 	return NNarray;
