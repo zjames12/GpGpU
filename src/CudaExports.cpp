@@ -63,31 +63,13 @@ arma::mat vecchia_Linv_gpu_isotropic_exponential(
     covparmsl[1] = covparms[1];
     covparmsl[2] = covparms[2];
 
-    // double* locsl = (double*)malloc(sizeof(double) * n * dim);
     locs = locs.t();
     double* locsl = locs.memptr();
-    // double* NNarrayl = (double*)malloc(sizeof(double) * n * m);
     NNarray = NNarray.t();
     double* NNarrayl = NNarray.memptr();
 
-    // for (int i = 0; i < n; i++){
-    //     for (int j = 0; j < m; j++){
-    //         if (j < dim) {
-    //             // locsl[i * dim + j] = locs(i, j);
-    //         }
-    //         NNarrayl[i * m + j] = NNarray(i, j);
-    //     }
-    // }
-
     double* Linvl = vecchia_Linv_gpu_outer(covparmsl, locsl, NNarrayl, n, m, dim);
 
-    // NumericMatrix Linv( n , m );
-    // arma::mat Linv = arma::mat(n, m);
-    // for (int i = 0; i < n; i++){
-    //     for (int j = 0; j < m; j++){
-    //         Linv(i,j) = Linvl[i * m + j];
-    //     }
-    // }
     arma::mat Linv = arma::mat(&Linvl[0], m, n, false);
     return Linv.t();
 }

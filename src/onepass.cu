@@ -191,10 +191,12 @@ __global__ void call_vecchia_Linv_gpu(double* locs, double* NNarray,
         return;
     }
 
-    
+    double covmat[961];
+    double loc[62];
     for (int j = 0; j < m; j++) {
         for (int k = 0; k < dim; k++) {
-            locs_scaled[i * m * dim + (m - 1 - j) * dim + k] = ( locs[(static_cast<int>(NNarray[i * m + j]) - 1) * dim + k] ) / range;
+            // locs_scaled[i * m * dim + (m - 1 - j) * dim + k] = ( locs[(__double2int_rz(NNarray[i * m + j]) - 1) * dim + k] ) / range;
+            loc[(m - 1 - j) * dim + k] = ( locs[(__double2int_rz(NNarray[i * m + j]) - 1) * dim + k] ) / range;
         }
     }
 
@@ -202,21 +204,24 @@ __global__ void call_vecchia_Linv_gpu(double* locs, double* NNarray,
         for (int i2 = 0; i2 <= i1; i2++) {
             // calculate covariance
             if (i1 == i2) {
-                covmat[i * m * m + i2 * m + i1] = variance * (1 + nugget);
+                // covmat[i * m * m + i2 * m + i1] = variance * (1 + nugget);
+                cov[i2 * m + i1] = variance * (1 + nugget);
             }
             else {
                 // calculate distance
-                // double d = hypot(locs_scaled[i * m * dim + i1 * dim ]- locs_scaled[i * m * dim + i2 * dim], 
-                //     locs_scaled[i * m * dim + i1 * dim + 1] - locs_scaled[i * m * dim + i2 * dim + 1]);
                 double d = 0;
                 double temp;
                 for (int k = 0; k < dim; k ++) {
-                    temp = locs_scaled[i * m * dim + i1 * dim + k]- locs_scaled[i * m * dim + i2 * dim + k];
+                    // temp = locs_scaled[i * m * dim + i1 * dim + k]- locs_scaled[i * m * dim + i2 * dim + k];
+                    temp = loc[i1 * dim + k]- loc[i2 * dim + k];
                     d += temp * temp;
                 }
                 d = sqrt(temp);
-                covmat[i * m * m + i2 * m + i1] = variance * exp(-d);
-                covmat[i * m * m + i1 * m + i2] = covmat[i * m * m + i2 * m + i1];
+                // covmat[i * m * m + i2 * m + i1] = variance * exp(-d);
+                // covmat[i * m * m + i1 * m + i2] = covmat[i * m * m + i2 * m + i1];
+
+                cov[i2 * m + i1] = variance * exp(-d);
+                cov[i1 * m + i2] = cov[i2 * m + i1];
             }
         }
     }
@@ -228,19 +233,23 @@ __global__ void call_vecchia_Linv_gpu(double* locs, double* NNarray,
         diff = 0;
         for (k = 0; k < m; k++) {
             if (k < q) {
-                temp = covmat[i * m * m + k * m + q];
+                // temp = covmat[i * m * m + k * m + q];
+                temp = cov[k * m + q];
                 diff -= temp * temp;
             }
             else if (k == q) {
-                covmat[i * m * m + q * m + q] = sqrt(covmat[i * m * m + q * m + q] + diff);;
+                // covmat[i * m * m + q * m + q] = sqrt(covmat[i * m * m + q * m + q] + diff);
+                cov[q * m + q] = sqrt(cov[q * m + q] + diff);
                 diff = 0;
             }
             else {
                 diff = 0;
                 for (int p = 0; p < q; p++) {
-                    diff += covmat[i * m * m + p * m + q] * covmat[i * m * m + p * m + k];
+                    // diff += covmat[i * m * m + p * m + q] * covmat[i * m * m + p * m + k];
+                    diff += cov[p * m + q] * cov[p * m + k];
                 }
-                covmat[i * m * m + q * m + k] = (covmat[i * m * m + q * m + k] - diff ) / covmat[i * m * m + q * m + q];
+                // covmat[i * m * m + q * m + k] = (covmat[i * m * m + q * m + k] - diff ) / covmat[i * m * m + q * m + q];
+                cov[q * m + k] = (cov[q * m + k] - diff) / cov[q * m + q];
             }
         }
 
@@ -250,9 +259,11 @@ __global__ void call_vecchia_Linv_gpu(double* locs, double* NNarray,
     for (int q = m - 1; q >= 0; q--) {
         double sum = 0.0;
         for (int j = q + 1; j < m; j++) {
-            sum += covmat[i * m * m + q * m + j] * NNarray[i * m + m - 1 - j];
+            // sum += covmat[i * m * m + q * m + j] * NNarray[i * m + m - 1 - j];
+            sum += cov[q * m + j] * NNarray[i * m + m - 1 - j];
         }
-        NNarray[i * m + m - 1 - q] = (b - sum) / covmat[i * m * m + q * m + q];
+        // NNarray[i * m + m - 1 - q] = (b - sum) / covmat[i * m * m + q * m + q];
+        NNarray[i * m + m - 1 - q] = (b - sum) / cov[q * m + q];
         b = 0;
     }    
 
