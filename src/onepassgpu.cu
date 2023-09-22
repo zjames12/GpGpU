@@ -352,6 +352,145 @@ double* vecchia_Linv_gpu_outer(
 
 }
 
+// Substitutes locations for NNarray indicies
+// returns n array contianing pointers to m * dim array
+__global__ void substitute_batched_kernel(double* NNarray, double* locs, double* sub_locs, double* covparms, int n, int m, int dim) {
+    //int i = blockIdx.x * blockDim.x * blockDim.y + threadIdx.y * blockDim.x + threadIdx.x;
+    int i = blockIdx.x;
+    int j = threadIdx.x;
+    int k = threadIdx.y;
+	
+	if (i > n || j > m || k > dim) {
+        return;
+    }
+
+    sub_locs[i * m * dim + (m - 1 - j) * dim + k] = locs[(static_cast<int>(NNarray[i * m + j]) - 1) * dim + k] / covparms[1];
+
+
+}
+
+// Calculates covariances
+// returns n * m * m array
+__global__ void covariance_batched_kernel(double* sub_locs, double* cov, double* covparms, int n, int m, int dim) {
+    int i = blockIdx.x;
+    int i1 = threadIdx.x;
+    int i2 = threadIdx.y;
+    if (i < m || i1 > m || i2 > m) {
+        return;
+    }
+    if (i1 == i2) {
+        cov[i * m * m + i1 * m + i2] = covparms[0] * (1 + covparms[2]);
+        return;
+    }
+    double d = 0;
+    double temp;
+    for (int k = 0; k < dim; k++) {
+        temp = sub_locs[i * m * dim + i1 * dim + k] - sub_locs[i * m * dim + i2 * dim + k];
+        d += temp * temp;
+    }
+    d = sqrt(d);
+    
+    cov[i * m * m + i1 * m + i2] = exp(-d) * covparms[0];
+    cov[i * m * m + i2 * m + i1] = cov[i * m * m + i1 * m + i2];
+}
+
+__global__ void cholesky_and_solve_batched_kernel(double* NNarray, double* covmat, double* covparms, int n, int m, int dim){
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < m || i > n) {
+        return;
+    }
+    int k, q, j;
+    double temp, diff;
+    for (q = 0; q < m; q++) {
+        diff = 0;
+        for (k = 0; k < m; k++) {
+            if (k < q) {
+                temp = covmat[i * m * m + k * m + q];
+                diff -= temp * temp;
+            }
+            else if (k == q) {
+                covmat[i * m * m + q * m + q] = sqrt(covmat[i * m * m + q * m + q] + diff);
+                diff = 0;
+            }
+            else {
+                diff = 0;
+                for (int p = 0; p < q; p++) {
+                    diff += covmat[i * m * m + p * m + q] * covmat[i * m * m + p * m + k];
+                }
+                covmat[i * m * m + q * m + k] = (covmat[i * m * m + q * m + k] - diff ) / covmat[i * m * m + q * m + q];
+            }
+        }
+
+    }
+
+    int b = 1;
+    for (int q = m - 1; q >= 0; q--) {
+        double sum = 0.0;
+        for (int j = q + 1; j < m; j++) {
+            sum += covmat[i * m * m + q * m + j] * NNarray[i * m + m - 1 - j];
+        }
+        NNarray[i * m + m - 1 - q] = (b - sum) / covmat[i * m * m + q * m + q];
+        b = 0;
+    }
+}
+
+extern "C"
+double* vecchia_Linv_gpu_batched(
+    double* covparms,
+    double* locs,
+    double* NNarray,
+    int n,
+    int m,
+    int dim) {
+
+    double* Linv = (double*)calloc(m * m, sizeof(double));
+    vecchia_Linv(covparms, locs, NNarray, Linv, n, m, dim, m);
+
+
+    //transfer to gpu
+    double* d_covparms, * d_locs, * d_NNarray;
+    gpuErrchk(cudaMalloc((void**)&d_locs, sizeof(double) * n * dim));
+    gpuErrchk(cudaMalloc((void**)&d_NNarray, sizeof(double) * n * m));
+    gpuErrchk(cudaMalloc((void**)&d_covparms, sizeof(double) * 3));
+
+
+    cudaMemcpy(d_covparms, covparms, sizeof(double*) * 3, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_NNarray, NNarray, sizeof(double*) * n * m, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_locs, locs, sizeof(double*) * n * dim, cudaMemcpyHostToDevice);
+
+    double *d_sublocs, *d_cov;
+    gpuErrchk(cudaMalloc((void**)&d_sublocs, sizeof(double) * n * m * dim));
+    gpuErrchk(cudaMalloc((void**)&d_cov, sizeof(double) * n * m * m))
+    
+    
+    dim3 threadsPerBlock(m, dim);
+    int numBlocks = n; //(n + 32 - 1) / 32;
+    substitute_batched_kernel << <numBlocks, threadsPerBlock >> > (d_NNarray, d_locs, d_sublocs, d_covparms, n, m, dim);
+    cudaDeviceSynchronize();
+
+    dim3 threadsPerBlock2(m, m);
+    int numBlocks2 = n;
+    covariance_batched_kernel << <numBlocks2, threadsPerBlock2 >> > (d_sublocs, d_cov, d_covparms, n, m, dim);
+    cudaDeviceSynchronize();
+
+    int threadsPerBlock3 = 32;
+	int numBlocks3 = (n + 32 - 1) / 32;
+    cholesky_and_solve_batched_kernel << <numBlocks3, threadsPerBlock3 >> > (d_NNarray, d_cov, d_covparms, n, m, dim);
+    cudaDeviceSynchronize();
+
+    double* vecchia_Linv = (double*)malloc(sizeof(double) * n * m);
+    cudaMemcpy(vecchia_Linv, d_NNarray, sizeof(double) * n * m, cudaMemcpyDeviceToHost);
+    for (int r = 0; r < m; r++) {
+        for (int s = 0; s < m; s++) {
+            vecchia_Linv[r * m + s] = Linv[r * m + s];
+        }
+    }
+
+    return vecchia_Linv;
+
+}
+
+
 void compute_pieces_cpu(
     double variance, double range, double nugget,
     double* locs,

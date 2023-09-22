@@ -47,6 +47,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// vecchia_Linv_gpu_isotropic_exponential_batched
+arma::mat vecchia_Linv_gpu_isotropic_exponential_batched(arma::vec covparms, arma::mat locs, arma::mat NNarray);
+RcppExport SEXP _GpGpU_vecchia_Linv_gpu_isotropic_exponential_batched(SEXP covparmsSEXP, SEXP locsSEXP, SEXP NNarraySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type NNarray(NNarraySEXP);
+    rcpp_result_gen = Rcpp::wrap(vecchia_Linv_gpu_isotropic_exponential_batched(covparms, locs, NNarray));
+    return rcpp_result_gen;
+END_RCPP
+}
 // vecchia_profbeta_loglik_grad_info_gpu
 List vecchia_profbeta_loglik_grad_info_gpu(NumericVector covparms, NumericVector y, NumericMatrix X, const NumericMatrix locs, NumericMatrix NNarray);
 RcppExport SEXP _GpGpU_vecchia_profbeta_loglik_grad_info_gpu(SEXP covparmsSEXP, SEXP ySEXP, SEXP XSEXP, SEXP locsSEXP, SEXP NNarraySEXP) {
@@ -1060,6 +1073,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GpGpU_nearest_neighbors_gpu", (DL_FUNC) &_GpGpU_nearest_neighbors_gpu, 2},
     {"_GpGpU_meanC", (DL_FUNC) &_GpGpU_meanC, 1},
     {"_GpGpU_vecchia_Linv_gpu_isotropic_exponential", (DL_FUNC) &_GpGpU_vecchia_Linv_gpu_isotropic_exponential, 3},
+    {"_GpGpU_vecchia_Linv_gpu_isotropic_exponential_batched", (DL_FUNC) &_GpGpU_vecchia_Linv_gpu_isotropic_exponential_batched, 3},
     {"_GpGpU_vecchia_profbeta_loglik_grad_info_gpu", (DL_FUNC) &_GpGpU_vecchia_profbeta_loglik_grad_info_gpu, 5},
     {"_GpGpU_vecchia_profbeta_loglik_gpu", (DL_FUNC) &_GpGpU_vecchia_profbeta_loglik_gpu, 5},
     {"_GpGpU_Linv_mult_gpu", (DL_FUNC) &_GpGpU_Linv_mult_gpu, 3},

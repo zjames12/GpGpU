@@ -13,6 +13,10 @@ vecchia_Linv_gpu_isotropic_exponential <- function(covparms, locs, NNarray) {
     .Call('_GpGpU_vecchia_Linv_gpu_isotropic_exponential', PACKAGE = 'GpGpU', covparms, locs, NNarray)
 }
 
+vecchia_Linv_gpu_isotropic_exponential_batched <- function(covparms, locs, NNarray) {
+    .Call('_GpGpU_vecchia_Linv_gpu_isotropic_exponential_batched', PACKAGE = 'GpGpU', covparms, locs, NNarray)
+}
+
 vecchia_profbeta_loglik_grad_info_gpu <- function(covparms, y, X, locs, NNarray) {
     .Call('_GpGpU_vecchia_profbeta_loglik_grad_info_gpu', PACKAGE = 'GpGpU', covparms, y, X, locs, NNarray)
 }
