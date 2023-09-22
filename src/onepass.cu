@@ -990,42 +990,53 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
     //int bsize = std::min(i + 1, m);
     
     if (i >= m && i < n) {
+        double ysub[31];
+        double locsub[31 * 2];
+        double X0[31 * 10];
         for (int j = m - 1; j >= 0; j--) {
-            ysub[i * m + m - 1 - j] = y[static_cast<int>(NNarray[i * m + j]) - 1];
+            // ysub[i * m + m - 1 - j] = y[static_cast<int>(NNarray[i * m + j]) - 1];
+            ysub[m - 1 - j] = y[static_cast<int>(NNarray[i * m + j]) - 1];
             for (int k = 0; k < dim; k++) {
-                locsub[i * m * dim + (m - 1 - j) * dim + k] = locs[(static_cast<int>(NNarray[i * m + j]) - 1) * dim + k] / range;
+                // locsub[i * m * dim + (m - 1 - j) * dim + k] = locs[(static_cast<int>(NNarray[i * m + j]) - 1) * dim + k] / range;
+                locsub[(m - 1 - j) * dim + k] = locs[(static_cast<int>(NNarray[i * m + j]) - 1) * dim + k] / range;
             }
             if (profbeta) {
                 for (int k = 0; k < p; k++) {
-                    X0[i * m * p + (m - 1 - j) * p + k] = X[(static_cast<int>(NNarray[i * m + j]) - 1) * p + k];
+                    // X0[i * m * p + (m - 1 - j) * p + k] = X[(static_cast<int>(NNarray[i * m + j]) - 1) * p + k];
+                    X0[(m - 1 - j) * p + k] = X[(static_cast<int>(NNarray[i * m + j]) - 1) * p + k];
                 }
             }
         }
         
-        
+        double covmat[31 * 31];
        
         double temp;
         for (int i1 = 0; i1 < m; i1++) {
             for (int i2 = 0; i2 <= i1; i2++) {
                 double d = 0.0;
                 for (int j = 0; j < dim; j++) {
-                    temp = locsub[i * m * dim + i1 * dim + j] - locsub[i * m * dim + i2 * dim + j];
+                    // temp = locsub[i * m * dim + i1 * dim + j] - locsub[i * m * dim + i2 * dim + j];
+                    temp = locsub[i1 * dim + j] - locsub[i2 * dim + j];
                     d += temp * temp;
                 }
                 d = sqrt(d);
                 // calculate covariance
                 if (i1 == i2) {
-                    covmat[i * m * m + i2 * m + i1] = variance * (exp(-d) + nugget);
+                    // covmat[i * m * m + i2 * m + i1] = variance * (exp(-d) + nugget);
+                    covmat[i2 * m + i1] = variance * (exp(-d) + nugget);
                 }
                 else {
-                    covmat[i * m * m + i2 * m + i1] = variance * exp(-d);
-                    covmat[i * m * m + i1 * m + i2] = covmat[i * m * m + i2 * m + i1];
+                    // covmat[i * m * m + i2 * m + i1] = variance * exp(-d);
+                    // covmat[i * m * m + i1 * m + i2] = covmat[i * m * m + i2 * m + i1];
+
+                    covmat[i2 * m + i1] = variance * exp(-d);
+                    covmat[i1 * m + i2] = covmat[i2 * m + i1];
                 }
             }
         }
         
 
-        
+        double dcovmat[31 * 31 * 3];
         if (grad_info) {
             // calculate derivatives
             //arma::cube dcovmat = arma::cube(n, n, covparms.n_elem, fill::zeros);
@@ -1035,21 +1046,29 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
                     double d = 0.0;
                     double a = 0;
                     for (int j = 0; j < dim; j++) {
-                        a = locsub[i * m * dim + i1 * dim + j] - locsub[i * m * dim + i2 * dim + j];
+                        // a = locsub[i * m * dim + i1 * dim + j] - locsub[i * m * dim + i2 * dim + j];
+                        a = locsub[i1 * dim + j] - locsub[i2 * dim + j];
                         d += a * a;
                     }
                     d = sqrt(d);
                     temp = exp(-d);
 
-                    dcovmat[i * m * m * nparms + i1 * m * nparms + i2 * nparms + 0] += temp;
-                    dcovmat[i * m * m * nparms + i1 * m * nparms + i2 * nparms + 1] += variance * temp * d / range;
+                    // dcovmat[i * m * m * nparms + i1 * m * nparms + i2 * nparms + 0] += temp;
+                    // dcovmat[i * m * m * nparms + i1 * m * nparms + i2 * nparms + 1] += variance * temp * d / range;
+
+                    dcovmat[i1 * m * nparms + i2 * nparms + 0] += temp;
+                    dcovmat[i1 * m * nparms + i2 * nparms + 1] += variance * temp * d / range;
                     if (i1 == i2) { // update diagonal entry
-                        dcovmat[i * m * m * nparms + i1 * m * nparms + i2 * nparms + 0] += nugget;
-                        dcovmat[i * m * m * nparms + i1 * m * nparms + i2 * nparms + 2] = variance;
+                        // dcovmat[i * m * m * nparms + i1 * m * nparms + i2 * nparms + 0] += nugget;
+                        // dcovmat[i * m * m * nparms + i1 * m * nparms + i2 * nparms + 2] = variance;
+
+                        dcovmat[i1 * m * nparms + i2 * nparms + 0] += nugget;
+                        dcovmat[i1 * m * nparms + i2 * nparms + 2] = variance;
                     }
                     else { // fill in opposite entry
                         for (int j = 0; j < nparms; j++) {
-                            dcovmat[i * m * m * nparms + i2 * m * nparms + i1 * nparms + j] = dcovmat[i * m * m * nparms + i1 * m * nparms + i2 * nparms + j];
+                            // dcovmat[i * m * m * nparms + i2 * m * nparms + i1 * nparms + j] = dcovmat[i * m * m * nparms + i1 * m * nparms + i2 * nparms + j];
+                            dcovmat[i2 * m * nparms + i1 * nparms + j] = dcovmat[i1 * m * nparms + i2 * nparms + j];
                         }
                     }
                 }
@@ -1070,18 +1089,22 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
         for (r = 0; r < m + 0; r++) {
             diff = 0;
             for (k = 0; k < r; k++) {
-                temp = covmat[i * m * m + r * m + k];
+                // temp = covmat[i * m * m + r * m + k];
+                temp = covmat[r * m + k];
                 diff += temp * temp;
             }
-            covmat[i * m * m + r * m + r] = sqrt(covmat[i * m * m + r * m + r] - diff);
+            // covmat[i * m * m + r * m + r] = sqrt(covmat[i * m * m + r * m + r] - diff);
+            covmat[r * m + r] = sqrt(covmat[r * m + r] - diff);
 
 
             for (j = r + 1; j < m + 0; j++) {
                 diff = 0;
                 for (k = 0; k < r; k++) {
-                    diff += covmat[i * m * m + r * m + k] * covmat[i * m * m + j * m + k];
+                    // diff += covmat[i * m * m + r * m + k] * covmat[i * m * m + j * m + k];
+                    diff += covmat[r * m + k] * covmat[j * m + k];
                 }
-                covmat[i * m * m + j * m + r] = (covmat[i * m * m + j * m + r] - diff) / covmat[i * m * m + r * m + r];
+                // covmat[i * m * m + j * m + r] = (covmat[i * m * m + j * m + r] - diff) / covmat[i * m * m + r * m + r];
+                covmat[j * m + r] = (covmat[j * m + r] - diff) / covmat[r * m + r];
             }
         }
 
@@ -1093,36 +1116,43 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
         // get last row of cholmat
         /*arma::vec onevec = zeros(bsize);
         onevec(bsize - 1) = 1.0;*/
-
+        double choli2[31];
         if (grad_info) {
             //choli2 = backward_solve(cholmat, onevec, m);
-            choli2[i * m + m - 1] = 1 / covmat[i * m * m + (m - 1) * m + m - 1];
+            // choli2[i * m + m - 1] = 1 / covmat[i * m * m + (m - 1) * m + m - 1];
+            choli2[m - 1] = 1 / covmat[(m - 1) * m + m - 1];
 
             for (int k = m - 2; k >= 0; k--) {
                 double dd = 0.0;
                 for (int j = m - 1; j > k; j--) {
-                    dd += covmat[i * m * m + j * m + k] * choli2[i * m + j];
+                    // dd += covmat[i * m * m + j * m + k] * choli2[i * m + j];
+                    dd += covmat[j * m + k] * choli2[i * m + j];
                 }
-                choli2[i * m + k] = (-dd) / covmat[i * m * m + k * m + k];
+                // choli2[i * m + k] = (-dd) / covmat[i * m * m + k * m + k];
+                choli2[k] = (-dd) / covmat[k * m + k];
             }
         }
         
         //bool cond = bsize > 1;
-
+        double LiX0[31 * 10];
         // do solves with X and y
         if (profbeta) {
             // LiX0 = forward_solve_mat(cholmat, X0, m, p);
             for (int k = 0; k < p; k++) {
                 LiX0[i * m * p + 0 * p + k] = X0[i * m * p + 0 * p + k] / covmat[i * m * m + 0 * m + 0];
+                LiX0[0 * p + k] = X0[0 * p + k] / covmat[0 * m + 0];
+
             }
 
             for (int h = 1; h < m; h++) {
                 for (int k = 0; k < p; k++) {
                     double dd = 0.0;
                     for (int j = 0; j < h; j++) {
-                        dd += covmat[i * m * m + h * m + j] * LiX0[i * m * p + j * p + k];
+                        // dd += covmat[i * m * m + h * m + j] * LiX0[i * m * p + j * p + k];
+                        dd += covmat[h * m + j] * LiX0[j * p + k];
                     }
-                    LiX0[i * m * p + h * p + k] = (X0[i * m * p + h * p + k] - dd) / covmat[i * m * m + h * m + h];
+                    // LiX0[i * m * p + h * p + k] = (X0[i * m * p + h * p + k] - dd) / covmat[i * m * m + h * m + h];
+                    LiX0[h * p + k] = (X0[h * p + k] - dd) / covmat[h * m + h];
                 }
             }
             
@@ -1130,7 +1160,8 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
         }
         for (int j = 0; j < m; j++) {
             for (int k = j + 1; k < m; k++) {
-                covmat[i * m * m + j * m + k] = 0.0;
+                // covmat[i * m * m + j * m + k] = 0.0;
+                covmat[j * m + k] = 0.0;
             }
         }
 
@@ -1140,38 +1171,54 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
         /*for (int j = 0; j < m; j++) {
             Liy0[i * m + j] = 0.0f;
         }*/
-        Liy0[i * m + 0] = ysub[i * m + 0] / covmat[i * m * m + 0 * m + 0];
+        double Liy0[31];
+        // Liy0[i * m + 0] = ysub[i * m + 0] / covmat[i * m * m + 0 * m + 0];
+        Liy0[0] = ysub[0] / covmat[0 * m + 0];
 
         for (int k = 1; k < m; k++) {
             double dd = 0.0;
             for (int j = 0; j < k; j++) {
-                dd += covmat[i * m * m + k * m + j] * Liy0[i * m + j];
+                // dd += covmat[i * m * m + k * m + j] * Liy0[i * m + j];
+                dd += covmat[k * m + j] * Liy0[j];
             }
-            Liy0[i * m + k] = (ysub[i * m + k] - dd) / covmat[i * m * m + k * m + k];
+            // Liy0[i * m + k] = (ysub[i * m + k] - dd) / covmat[i * m * m + k * m + k];
+            Liy0[k] = (ysub[k] - dd) / covmat[k * m + k];
+
         }
        
 
         // loglik objects
-        logdet[i] = 2.0 * log(covmat[i * m * m + (m - 1) * m + m - 1]);
+        // logdet[i] = 2.0 * log(covmat[i * m * m + (m - 1) * m + m - 1]);
+        logdet[i] = 2.0 * log(covmat[(m - 1) * m + m - 1]);
 
-        temp = Liy0[i * m + m - 1];
+        // temp = Liy0[i * m + m - 1];
+        temp = Liy0[m - 1];
         ySy[i] = temp * temp;
 
         
         if (profbeta) {
             /*l_XSX += LiX0.rows(i2).t() * LiX0.rows(i2);
             l_ySX += (Liy0(i2) * LiX0.rows(i2)).t();*/
-            temp2 = Liy0[i * m + m - 1];
+            // temp2 = Liy0[i * m + m - 1];
+            temp2 = Liy0[m - 1];
             for (int i1 = 0; i1 < p; i1++) {
-                temp = LiX0[i * m * p + (m - 1) * p + i1];
+                // temp = LiX0[i * m * p + (m - 1) * p + i1];
+                temp = LiX0[(m - 1) * p + i1];
                 for (int i2 = 0; i2 <= i1; i2++) {
-                    XSX[i * p * p + i1 * p + i2] = temp * LiX0[i * m * p + (m - 1) * p + i2];
+                    // XSX[i * p * p + i1 * p + i2] = temp * LiX0[i * m * p + (m - 1) * p + i2];
+                    // XSX[i * p * p + i2 * p + i1] = XSX[i * p * p + i1 * p + i2];
+
+                    XSX[i * p * p + i1 * p + i2] = temp * LiX0[(m - 1) * p + i2];
                     XSX[i * p * p + i2 * p + i1] = XSX[i * p * p + i1 * p + i2];
                 }
-                ySX[i * p + i1] = temp2 * LiX0[i * m * p + (m - 1) * p + i1];
+                // ySX[i * p + i1] = temp2 * LiX0[i * m * p + (m - 1) * p + i1];
+                ySX[i * p + i1] = temp2 * LiX0[(m - 1) * p + i1];
             }
             
         }
+        double LidSLi3[31];
+        double c[31];
+        double v1[10];
         if (grad_info) {
             // gradient objects
             // LidSLi3 is last column of Li * (dS_j) * Lit for 1 parameter i
@@ -1188,20 +1235,25 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
                     c[i * m + h] = 0;
                     temp = 0;
                     for (int k = 0; k < m; k++) {
-                        temp += dcovmat[i * m * m * nparms + h * m * nparms + k * nparms + j] * choli2[i * m + k];
+                        // temp += dcovmat[i * m * m * nparms + h * m * nparms + k * nparms + j] * choli2[i * m + k];
+                        temp += dcovmat[h * m * nparms + k * nparms + j] * choli2[k];
                     }
-                    c[i * m + h] = temp;
+                    // c[i * m + h] = temp;
+                    c[h] = temp;
                 }
 
                 //LidSLi3 = forward_solve(cholmat, c);      
-                LidSLi3[i * m + 0] = c[i * m + 0] / covmat[i * m * m + 0 * m + 0];
+                // LidSLi3[i * m + 0] = c[i * m + 0] / covmat[i * m * m + 0 * m + 0];
+                LidSLi3[0] = c[0] / covmat[0 * m + 0];
 
                 for (int k = 1; k < m; k++) {
                     double dd = 0.0;
                     for (int l = 0; l < k; l++) {
-                        dd += covmat[i * m * m + k * m + l] * LidSLi3[i * m + l];
+                        // dd += covmat[i * m * m + k * m + l] * LidSLi3[i * m + l];
+                        dd += covmat[k * m + l] * LidSLi3[l];
                     }
-                    LidSLi3[i * m + k] = (c[i * m + k] - dd) / covmat[i * m * m + k * m + k];
+                    // LidSLi3[i * m + k] = (c[i * m + k] - dd) / covmat[i * m * m + k * m + k];
+                    LidSLi3[k] = (c[k] - dd) / covmat[k * m + k];
                 }
 
                 ////////////////
@@ -1211,9 +1263,10 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
                     v1[i * p + h] = 0;
                     temp = 0;
                     for (int k = 0; k < m; k++) {
-                        temp += LiX0[i * m * p + k * p + h] * LidSLi3[i * m + k];
+                        // temp += LiX0[i * m * p + k * p + h] * LidSLi3[i * m + k];
+                        temp += LiX0[k * p + h] * LidSLi3[k];
                     }
-                    v1[i * p + h] = temp;
+                    v1[h] = temp;
                 }
 
                 ////////////////
@@ -1221,7 +1274,8 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
                 //double s1 = as_scalar(Liy0.t() * LidSLi3);
                 double s1 = 0;
                 for (int h = 0; h < m; h++) {
-                    s1 += Liy0[i * m + h] * LidSLi3[i * m + h];
+                    // s1 += Liy0[i * m + h] * LidSLi3[i * m + h];
+                    s1 += Liy0[h] * LidSLi3[h];
                 }
 
                 ////////////////
@@ -1231,18 +1285,27 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
 
                     //double* v1LiX0 = (double*)malloc(sizeof(double) * m * m);
                 double temp3;
-                double temp4 = LidSLi3[i * m + m - 1];
+                // double temp4 = LidSLi3[i * m + m - 1];
+                double temp4 = LidSLi3[m - 1];
                 for (int h = 0; h < p; h++) {
-                    temp = v1[i * p + h];
-                    temp2 = LiX0[i * m * p + (m - 1) * p + h];
+                    // temp = v1[i * p + h];
+                    // temp2 = LiX0[i * m * p + (m - 1) * p + h];
+
+                    temp = v1[h];
+                    temp2 = LiX0[(m - 1) * p + h];
 
                     for (int k = 0; k < p; k++) {
-                        temp3 = LiX0[i * m * p + (m - 1) * p + k];
+                        // temp3 = LiX0[i * m * p + (m - 1) * p + k];
+                        // dXSX[i * p * p * nparms + h * p * nparms + k * nparms + j] = temp * temp3 +
+                        //     (v1[i * p + k] - temp4 * temp3) * temp2;
+
+                        temp3 = LiX0[(m - 1) * p + k];
                         dXSX[i * p * p * nparms + h * p * nparms + k * nparms + j] = temp * temp3 +
-                            (v1[i * p + k] - temp4 * temp3) * temp2;
+                            (v1[k] - temp4 * temp3) * temp2;
                     }
                 }
-                temp = Liy0[i * m + m - 1];
+                // temp = Liy0[i * m + m - 1];
+                temp = Liy0[m - 1];
                 ///////////////
                 /*(l_dySy)(j) += as_scalar(2.0 * s1 * Liy0(i2) -
                     LidSLi3(i2) * Liy0(i2) * Liy0(i2));*/
@@ -1250,11 +1313,17 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
 
                 /*(l_dySX).col(j) += (s1 * LiX0.rows(i2) + (v1 * Liy0(i2)).t() -
                     as_scalar(LidSLi3(i2)) * LiX0.rows(i2) * as_scalar(Liy0(i2))).t();*/
-                temp3 = LidSLi3[i * m + m - 1];
+
+                // temp3 = LidSLi3[i * m + m - 1];
+                temp3 = LidSLi3[m - 1];
                 for (int h = 0; h < p; h++) {
-                    temp2 = LiX0[i * m * p + (m - 1) * p + h];
+                    // temp2 = LiX0[i * m * p + (m - 1) * p + h];
+                    // dySX[i * p * nparms + h * nparms + j] = s1 * temp2 +
+                    //     v1[i * p + h] * temp - temp3 * temp2 * temp;
+
+                    temp2 = LiX0[(m - 1) * p + h];
                     dySX[i * p * nparms + h * nparms + j] = s1 * temp2 +
-                        v1[i * p + h] * temp - temp3 * temp2 * temp;
+                        v1[h] * temp - temp3 * temp2 * temp;
                 }
 
                 //(l_dlogdet)(j) += as_scalar(LidSLi3(i2));
@@ -1262,7 +1331,8 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
 
                 //LidSLi2.col(j) = LidSLi3;
                 for (int h = 0; h < m; h++) {
-                    LidSLi2[i * m * nparms + h * nparms + j] = LidSLi3[i * m + h];
+                    // LidSLi2[i * m * nparms + h * nparms + j] = LidSLi3[i * m + h];
+                    LidSLi2[h * nparms + j] = LidSLi3[h];
                 }
                 /*if (i == 40 && j == 2) {
                     printf("CPU s1\n");
@@ -1274,7 +1344,8 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
             // fisher information object
             // bottom right corner gets double counted, so subtract it off
             for (int h = 0; h < nparms; h++) {
-                temp2 = LidSLi2[i * m * nparms + (m - 1) * nparms + h];
+                // temp2 = LidSLi2[i * m * nparms + (m - 1) * nparms + h];
+                temp2 = LidSLi2[(m - 1) * nparms + h];
                 for (int j = 0; j < h + 1; j++) {
                     /*(l_ainfo)(h, j) +=
                         1.0 * accu(LidSLi2.col(h) % LidSLi2.col(j)) -
@@ -1282,9 +1353,11 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
                             LidSLi2.rows(i2).col(h));*/
                     double s = 0;
                     for (int l = 0; l < m; l++) {
-                        s += LidSLi2[i * m * nparms + l * nparms + h] * LidSLi2[i * m * nparms + l * nparms + j];
+                        // s += LidSLi2[i * m * nparms + l * nparms + h] * LidSLi2[i * m * nparms + l * nparms + j];
+                        s += LidSLi2[l * nparms + h] * LidSLi2[l * nparms + j];
                     }
-                    ainfo[i * nparms * nparms + h * nparms + j] = s - 0.5 * LidSLi2[i * m * nparms + (m - 1) * nparms + j] * temp2;
+                    // ainfo[i * nparms * nparms + h * nparms + j] = s - 0.5 * LidSLi2[i * m * nparms + (m - 1) * nparms + j] * temp2;
+                    ainfo[i * nparms * nparms + h * nparms + j] = s - 0.5 * LidSLi2[(m - 1) * nparms + j] * temp2;
                 }
             }
            
