@@ -1126,7 +1126,7 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
                 double dd = 0.0;
                 for (int j = m - 1; j > k; j--) {
                     // dd += covmat[i * m * m + j * m + k] * choli2[i * m + j];
-                    dd += covmat[j * m + k] * choli2[i * m + j];
+                    dd += covmat[j * m + k] * choli2[j];
                 }
                 // choli2[i * m + k] = (-dd) / covmat[i * m * m + k * m + k];
                 choli2[k] = (-dd) / covmat[k * m + k];
@@ -1139,7 +1139,7 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
         if (profbeta) {
             // LiX0 = forward_solve_mat(cholmat, X0, m, p);
             for (int k = 0; k < p; k++) {
-                LiX0[i * m * p + 0 * p + k] = X0[i * m * p + 0 * p + k] / covmat[i * m * m + 0 * m + 0];
+                // LiX0[i * m * p + 0 * p + k] = X0[i * m * p + 0 * p + k] / covmat[i * m * m + 0 * m + 0];
                 LiX0[0 * p + k] = X0[0 * p + k] / covmat[0 * m + 0];
 
             }
@@ -1217,6 +1217,7 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
             
         }
         double LidSLi3[31];
+		double LidSLi2[31 * 3];
         double c[31];
         double v1[10];
         if (grad_info) {
@@ -1232,7 +1233,7 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
                 //arma::vec LidSLi3 = forward_solve(cholmat, dcovmat.slice(j) * choli2);
                 // c = dcovmat.slice(j) * choli2
                 for (int h = 0; h < m; h++) {
-                    c[i * m + h] = 0;
+                    c[h] = 0;
                     temp = 0;
                     for (int k = 0; k < m; k++) {
                         // temp += dcovmat[i * m * m * nparms + h * m * nparms + k * nparms + j] * choli2[i * m + k];
@@ -1260,7 +1261,7 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
                 //arma::vec v1 = LiX0.t() * LidSLi3;
 
                 for (int h = 0; h < p; h++) {
-                    v1[i * p + h] = 0;
+                    v1[h] = 0;
                     temp = 0;
                     for (int k = 0; k < m; k++) {
                         // temp += LiX0[i * m * p + k * p + h] * LidSLi3[i * m + k];
