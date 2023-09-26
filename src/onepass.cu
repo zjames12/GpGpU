@@ -1428,9 +1428,10 @@ void call_compute_pieces_gpu(
     double* d_v1;
     double* d_LidSLi3;
 
-    gpuErrchk(cudaMalloc((void**)&d_covmat, sizeof(double) * n * m * m));
-    gpuErrchk(cudaMalloc((void**)&d_locs_scaled, sizeof(double) * n * m * dim));
-    gpuErrchk(cudaMalloc((void**)&d_ySX, sizeof(double) * n * p));
+    /*gpuErrchk(cudaMalloc((void**)&d_covmat, sizeof(double) * n * m * m));
+    gpuErrchk(cudaMalloc((void**)&d_locs_scaled, sizeof(double) * n * m * dim));*/
+    
+	gpuErrchk(cudaMalloc((void**)&d_ySX, sizeof(double) * n * p));
     gpuErrchk(cudaMalloc((void**)&d_XSX, sizeof(double) * n * p * p));
     gpuErrchk(cudaMalloc((void**)&d_ySy, sizeof(double) * n));
     gpuErrchk(cudaMalloc((void**)&d_logdet, sizeof(double) * n));
@@ -1440,7 +1441,7 @@ void call_compute_pieces_gpu(
     gpuErrchk(cudaMalloc((void**)&d_dlogdet, sizeof(double) * n * nparms));
     gpuErrchk(cudaMalloc((void**)&d_ainfo, sizeof(double) * n * nparms * nparms));
 
-    gpuErrchk(cudaMalloc((void**)&d_dcovmat, sizeof(double) * n * m * m * nparms));
+    /*gpuErrchk(cudaMalloc((void**)&d_dcovmat, sizeof(double) * n * m * m * nparms));
     gpuErrchk(cudaMalloc((void**)&d_ysub, sizeof(double) * n * m));
     gpuErrchk(cudaMalloc((void**)&d_X0, sizeof(double) * n * m * p));
     gpuErrchk(cudaMalloc((void**)&d_Liy0, sizeof(double) * n * m));
@@ -1450,7 +1451,7 @@ void call_compute_pieces_gpu(
     gpuErrchk(cudaMalloc((void**)&d_LidSLi2, sizeof(double) * n * m * nparms));
     gpuErrchk(cudaMalloc((void**)&d_c, sizeof(double) * n * m));
     gpuErrchk(cudaMalloc((void**)&d_v1, sizeof(double) * n * p));
-    gpuErrchk(cudaMalloc((void**)&d_LidSLi3, sizeof(double) * n * m));
+    gpuErrchk(cudaMalloc((void**)&d_LidSLi3, sizeof(double) * n * m));*/
 
     gpuErrchk(cudaMemcpy(d_locs, locs, sizeof(double) * n * dim, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_NNarray, NNarray, sizeof(double) * n * m, cudaMemcpyHostToDevice));
