@@ -23,14 +23,16 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// meanC
-double meanC(NumericVector x);
-RcppExport SEXP _GpGpU_meanC(SEXP xSEXP) {
+// nearest_neighbors_sing_gpu
+NumericMatrix nearest_neighbors_sing_gpu(arma::mat locs, int m, int nq);
+RcppExport SEXP _GpGpU_nearest_neighbors_sing_gpu(SEXP locsSEXP, SEXP mSEXP, SEXP nqSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
-    rcpp_result_gen = Rcpp::wrap(meanC(x));
+    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< int >::type nq(nqSEXP);
+    rcpp_result_gen = Rcpp::wrap(nearest_neighbors_sing_gpu(locs, m, nq));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -1071,7 +1073,7 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_GpGpU_nearest_neighbors_gpu", (DL_FUNC) &_GpGpU_nearest_neighbors_gpu, 2},
-    {"_GpGpU_meanC", (DL_FUNC) &_GpGpU_meanC, 1},
+    {"_GpGpU_nearest_neighbors_sing_gpu", (DL_FUNC) &_GpGpU_nearest_neighbors_sing_gpu, 3},
     {"_GpGpU_vecchia_Linv_gpu_isotropic_exponential", (DL_FUNC) &_GpGpU_vecchia_Linv_gpu_isotropic_exponential, 3},
     {"_GpGpU_vecchia_Linv_gpu_isotropic_exponential_batched", (DL_FUNC) &_GpGpU_vecchia_Linv_gpu_isotropic_exponential_batched, 3},
     {"_GpGpU_vecchia_profbeta_loglik_grad_info_gpu", (DL_FUNC) &_GpGpU_vecchia_profbeta_loglik_grad_info_gpu, 5},

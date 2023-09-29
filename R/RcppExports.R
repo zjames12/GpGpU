@@ -5,8 +5,8 @@ nearest_neighbors_gpu <- function(locs, m) {
     .Call('_GpGpU_nearest_neighbors_gpu', PACKAGE = 'GpGpU', locs, m)
 }
 
-meanC <- function(x) {
-    .Call('_GpGpU_meanC', PACKAGE = 'GpGpU', x)
+nearest_neighbors_sing_gpu <- function(locs, m, nq) {
+    .Call('_GpGpU_nearest_neighbors_sing_gpu', PACKAGE = 'GpGpU', locs, m, nq)
 }
 
 vecchia_Linv_gpu_isotropic_exponential <- function(covparms, locs, NNarray) {
