@@ -315,8 +315,8 @@ double* vecchia_Linv_gpu_outer(
     //auto begin = std::chrono::steady_clock::now();
     gpuErrchk(cudaMalloc((void**)&d_locs, sizeof(double) * n * dim));
     gpuErrchk(cudaMalloc((void**)&d_NNarray, sizeof(double) * n * m));
-    gpuErrchk(cudaMalloc((void**)&d_covmat, sizeof(double) * n * m * m));
-    gpuErrchk(cudaMalloc((void**)&d_locs_scaled, sizeof(double) * n * m * dim));
+    /*gpuErrchk(cudaMalloc((void**)&d_covmat, sizeof(double) * n * m * m));
+    gpuErrchk(cudaMalloc((void**)&d_locs_scaled, sizeof(double) * n * m * dim))*/;
 
     gpuErrchk(cudaMemcpy(d_locs, locs, sizeof(double) * n * dim, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_NNarray, NNarray, sizeof(double) * n * m, cudaMemcpyHostToDevice));
