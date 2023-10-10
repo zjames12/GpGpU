@@ -193,27 +193,31 @@ __global__ void call_vecchia_Linv_gpu(double* locs, double* NNarray,
     double ls[31 * 2];
     double cov[31 * 31];
     
-    //clock_t start = clock();
     for (int j = 0; j < m; j++) {
         for (int k = 0; k < dim; k++) {
             // locs_scaled[i * m * dim + (m - 1 - j) * dim + k] = ( locs[(static_cast<int>(NNarray[i * m + j]) - 1) * dim + k] ) / range;
             ls[(m - 1 -j) * dim + k] = locs[(static_cast<int>(NNarray[i * m + j]) - 1) * dim + k] / range;
         }
     }
-    //clock_t end = clock();
-    //if (i == 21) {
-    //    printf("scale %i\n", (int)(end - start));
-    //}    // Calculate covariances
-    //start = clock();
-    for (int i1 = 0; i1 < m; i1++) {
+    
+	for (int i1 = 0; i1 < m; i1++) {
         for (int i2 = 0; i2 <= i1; i2++) {
             // calculate distance
             //double d = hypot(locs_scaled[i * m * dim + i1 * dim ]- locs_scaled[i * m * dim + i2 * dim], 
-              //  locs_scaled[i * m * dim + i1 * dim + 1] - locs_scaled[i * m * dim + i2 * dim + 1]);
+              //locs_scaled[i * m * dim + i1 * dim + 1] - locs_scaled[i * m * dim + i2 * dim + 1]);
             
-			double d = hypot(ls[i1 * dim] - ls[i2 * dim],
-                ls[i1 * dim + 1] - ls[i2 * dim + 1]);
-            // calculate covariance
+			//double d = hypot(ls[i1 * dim] - ls[i2 * dim],
+                //ls[i1 * dim + 1] - ls[i2 * dim + 1]);
+            
+			double d = 0;
+			double d2 = 0;
+			for (int j = 0; j < dim; j++) {
+				d2 = ls[i1 * dim + j] - ls[i2 * dim + j];
+				d += d2 * d2;
+			}
+			d = sqrt(d);
+
+			// calculate covariance
             if (i1 == i2) {
                 // covmat[i * m * m + i2 * m + i1] = variance * (expf(-d) + nugget);
                 cov[i2 * m + i1] = variance * (exp(-d) + nugget);
@@ -226,14 +230,8 @@ __global__ void call_vecchia_Linv_gpu(double* locs, double* NNarray,
             }
         }
     }
-    /*end = clock();
-    if (i == 21) {
-        printf("covmat %i\n", (int)(end - start));
-    }*/
-    clock_t start = clock();
- 
-    // Cholesky decomposition
-    int k, q, j;
+    
+	int k, q, j;
     double temp, diff;
     for (q = 0; q < m; q++) {
         diff = 0;
@@ -260,14 +258,6 @@ __global__ void call_vecchia_Linv_gpu(double* locs, double* NNarray,
         }
 
     }
-    //assert(retval != 0);
-    /*end = clock();
-    if (i == 21) {
-        printf("cholesky %i\n", (int)(end - start));
-    }*/
-
-    // Solve system
-    //start = clock();
     int b = 1;
     for (int q = m - 1; q >= 0; q--) {
         double sum = 0.0;
@@ -279,18 +269,6 @@ __global__ void call_vecchia_Linv_gpu(double* locs, double* NNarray,
         NNarray[i * m + m - 1 - q] = (b - sum) / cov[q * m + q];
         b = 0;
     }
-    clock_t end = clock();
-    /*if (i == 21) {
-        printf("Cholesky + solve cycles %i\n", (int)(end - start));
-    }*/
-    /*if (i == 201) {
-        for (int p = 0; p < m; p++) {
-            printf("%f ", NNarray[i * m + p]);
-        }
-        printf("\n\n");
-    }*/
-    ///////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////
     
 
 }
