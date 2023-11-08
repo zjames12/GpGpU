@@ -1039,15 +1039,15 @@ void compute_pieces_cpu(
 
 }
 
-__global__ void compute_pieces(double* y, double* X, double* NNarray, double* locs, double* locsub,
-    double* covmat, double* logdet, double* ySy, double* XSX, double* ySX,
+__global__ void compute_pieces(double* y, double* X, double* NNarray, double* locs, /*double* locsub,*/
+    /*double* covmat,*/ double* logdet, double* ySy, double* XSX, double* ySX,
     double* dXSX, double* dySX, double* dySy, double* dlogdet, double* ainfo,
     double variance, double range, double nugget,
     int n, int p, int m, int dim, int nparms,
-    bool profbeta, bool grad_info,
-    double* dcovmat,
+    bool profbeta, bool grad_info//,
+    /*double* dcovmat,
     double* ysub, double* X0, double* Liy0, double* LiX0, double* choli2, double* onevec,
-    double* LidSLi2, double* c, double* v1, double* LidSLi3) {
+    double* LidSLi2, double* c, double* v1, double* LidSLi3*/) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     //int bsize = std::min(i + 1, m);
     if (i < m || i >= n) {
@@ -1071,7 +1071,7 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
                 }
             }
         }
-        
+    
         double covmat[31 * 31];
        
         double temp;
@@ -1099,7 +1099,6 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
             }
         }
         
-
         double dcovmat[31 * 31 * 3];
         if (grad_info) {
             // calculate derivatives
@@ -1107,6 +1106,8 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
             //dcovmat = (double*)malloc(sizeof(double) * m * m * nparms);
             for (int i1 = 0; i1 < m; i1++) {
                 for (int i2 = 0; i2 <= i1; i2++) {
+                    dcovmat[i1 * m * nparms + i2 * nparms + 0] = 0;
+                    dcovmat[i1 * m * nparms + i2 * nparms + 1] = 0;
                     double d = 0.0;
                     double a = 0;
                     for (int j = 0; j < dim; j++) {
@@ -1137,7 +1138,7 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
                     }
                 }
             }
-
+            
         }
        
         /*arma::mat cholmat = eye(size(covmat));
@@ -1254,7 +1255,7 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
         // loglik objects
         // logdet[i] = 2.0 * log(covmat[i * m * m + (m - 1) * m + m - 1]);
         logdet[i] = 2.0 * log(covmat[(m - 1) * m + m - 1]);
-
+        
         // temp = Liy0[i * m + m - 1];
         temp = Liy0[m - 1];
         ySy[i] = temp * temp;
@@ -1281,8 +1282,8 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
             
         }
         double LidSLi3[31];
-		double LidSLi2[31 * 3];
         double c[31];
+		double LidSLi2[31 * 3];
         double v1[10];
         if (grad_info) {
             // gradient objects
@@ -1732,11 +1733,11 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
 
 extern "C"
 void call_compute_pieces_gpu(
-    double* covparms,
-    double* locs,
-    double* NNarray,
-    double* y,
-    double* X,
+    const double* covparms,
+    const double* locs,
+    const double* NNarray,
+    const double* y,
+    const double* X,
     double* XSX,
     double* ySX,
     double* ySy,
@@ -1746,13 +1747,13 @@ void call_compute_pieces_gpu(
     double* dySy,
     double* dlogdet,
     double* ainfo,
-    int profbeta,
-    int grad_info,
-    int n,
-    int m,
-    int p,
-    int nparms,
-    int dim
+    const int profbeta,
+    const int grad_info,
+    const int n,
+    const int m,
+    const int p,
+    const int nparms,
+    const int dim
 ) {
     //m++;
 
@@ -1766,8 +1767,9 @@ void call_compute_pieces_gpu(
     gpuErrchk(cudaMalloc((void**)&d_y, sizeof(double) * n));
     gpuErrchk(cudaMalloc((void**)&d_X, sizeof(double) * n * p));
 
-    double* d_covmat;
-    double* d_locs_scaled;
+    // double* d_covmat;
+    // double* d_locs_scaled;
+
     double* d_ySX;
     double* d_XSX;
     double* d_ySy;
@@ -1778,17 +1780,17 @@ void call_compute_pieces_gpu(
     double* d_dlogdet;
     double* d_ainfo;
 
-    double* d_dcovmat;
-    double* d_ysub;
-    double* d_X0;
-    double* d_Liy0;
-    double* d_LiX0;
-    double* d_choli2;
-    double* d_onevec;
-    double* d_LidSLi2;
-    double* d_c;
-    double* d_v1;
-    double* d_LidSLi3;
+    // double* d_dcovmat;
+    // double* d_ysub;
+    // double* d_X0;
+    // double* d_Liy0;
+    // double* d_LiX0;
+    // double* d_choli2;
+    // double* d_onevec;
+    // double* d_LidSLi2;
+    // double* d_c;
+    // double* d_v1;
+    // double* d_LidSLi3;
 
     /*gpuErrchk(cudaMalloc((void**)&d_covmat, sizeof(double) * n * m * m));
     gpuErrchk(cudaMalloc((void**)&d_locs_scaled, sizeof(double) * n * m * dim));*/
@@ -1825,16 +1827,17 @@ void call_compute_pieces_gpu(
     int grid_size = 64;
     int block_size = ((n + grid_size) / grid_size);
 
-    compute_pieces << <block_size, grid_size >> > (d_y, d_X, d_NNarray, d_locs, d_locs_scaled,
-        d_covmat, d_logdet, d_ySy, d_XSX, d_ySX,
+    compute_pieces << <block_size, grid_size >> > (d_y, d_X, d_NNarray, d_locs,/* d_locs_scaled,*/
+        /*d_covmat,*/ d_logdet, d_ySy, d_XSX, d_ySX,
         d_dXSX, d_dySX, d_dySy, d_dlogdet, d_ainfo,
         covparms[0], covparms[1], covparms[2],
         n, p, m, dim, nparms,
-        profbeta, grad_info,
-        d_dcovmat,
+        profbeta, grad_info//,
+        /*d_dcovmat,
         d_ysub, d_X0, d_Liy0, d_LiX0, d_choli2, d_onevec,
-        d_LidSLi2, d_c, d_v1, d_LidSLi3);
-    cudaDeviceSynchronize();
+        d_LidSLi2, d_c, d_v1, d_LidSLi3*/);
+    // gpuErrchk( cudaPeekAtLastError() );
+    gpuErrchk( cudaDeviceSynchronize() );
 
 
     double* l_ySy = (double*)malloc(sizeof(double) * n);
@@ -1872,8 +1875,6 @@ void call_compute_pieces_gpu(
     gpuErrchk(cudaFree(d_y));
     gpuErrchk(cudaFree(d_X));
 
-
-    
     ySy[0] = 0;
     logdet[0] = 0;
     for (int i = 0; i < n; i++) {
@@ -1902,7 +1903,7 @@ void call_compute_pieces_gpu(
             }
         }
     }
-
+    
     free(l_ySy);
     free(l_logdet);
     free(l_ySX);
@@ -1912,113 +1913,6 @@ void call_compute_pieces_gpu(
     free(l_dySy);
     free(l_dlogdet);
     free(l_ainfo);
-    
-    //printf("m:%i\n", m);
-    //arma::vec covparmsa(covparms, 3);
-    //arma::mat locsa(locs, dim, n);
-    //arma::mat NNarraya(NNarray, m, m);
-    //arma::vec ya(y, m);
-    //arma::mat Xa(X, p, m);
-
-    //locsa = locsa.t();
-    //NNarraya = NNarraya.t();
-    //Xa = Xa.t();
-
-    //arma::mat XSXa = arma::mat(p, p, fill::zeros);
-    //arma::vec ySXa = arma::vec(p, fill::zeros);
-    //double ySya = 0.0;
-    //double logdeta = 0.0;
-
-    //// gradient objects    
-    //arma::cube dXSXa = arma::cube(p, p, nparms, fill::zeros);
-    //arma::mat dySXa = arma::mat(p, nparms, fill::zeros);
-    //arma::vec dySya = arma::vec(nparms, fill::zeros);
-    //arma::vec dlogdeta = arma::vec(nparms, fill::zeros);
-    //// fisher information
-    //arma::mat ainfoa = arma::mat(nparms, nparms, fill::zeros);
-
-    //try {
-    //    compute_pieces(
-    //        covparmsa, "exponential_isotropic", locsa, NNarraya, ya, Xa,
-    //        &XSXa, &ySXa, &ySya, &logdeta, &dXSXa, &dySXa, &dySya, &dlogdeta, &ainfoa,
-    //        profbeta, grad_info
-    //    );
-    //}
-    //catch (std::exception& exc) {
-    //    printf(exc.what());
-    //}
-    //printf("logdet: %f\n", logdet[0]);
-    //    
-    //ySy[0] += ySya;
-    //logdet[0] += logdeta;
-    //for (int j = 0; j < p; j++) {
-    //    ySX[j] += ySXa(j);
-    //    for (int k = 0; k < p; k++) {
-    //        XSX[j * p + k] += XSXa(j, k);
-    //        for (int l = 0; l < nparms; l++) {
-    //            dXSX[j * p * nparms + k * nparms + l] += dXSXa(j, k, l);
-    //            //dXSX[j * p * nparms + k * nparms + l] += 0;
-    //        }
-    //    }
-    //    for (int k = 0; k < nparms; k++) {
-    //        dySX[j * nparms + k] += dySXa(j, k);
-    //        //printf("%f ", l_dySX[i * p * nparms + j * nparms + k]);
-    //    }
-    //}
-    //printf("%f\n", l_logdet[i]);
-    /*l_ySy = (double*)malloc(sizeof(double) * n);
-    l_logdet = (double*)malloc(sizeof(double) * n);*/
-    
-    // l_ySX = (double*)calloc(p, sizeof(double));
-    // l_XSX = (double*)calloc(p * p, sizeof(double));
-    // l_dySX = (double*)calloc(p * nparms, sizeof(double));
-    // l_dXSX = (double*)calloc(p * p * nparms, sizeof(double));
-    // l_dySy = (double*)calloc(nparms, sizeof(double));
-    // l_dlogdet = (double*)calloc(nparms, sizeof(double));
-    // l_ainfo = (double*)calloc(nparms * nparms, sizeof(double));
-    // double ySya = 0;
-    // double logdeta = 0;
-
-    // for (int i = 0; i < m; i++){
-    //     for (int j = 0 ; j < m; j++){
-    //         printf("%f", NNarray[i * m + j]);
-    //     }
-    //     printf("\n");
-    // }
-
-    // try {
-    //     compute_pieces_cpu(covparms[0], covparms[1], covparms[2],
-    //         locs, NNarray, y, X,
-    //         l_XSX, l_ySX, ySya, logdeta, l_dXSX, l_dySX, l_dySy, l_dlogdet, l_ainfo,
-    //         profbeta, grad_info,
-    //         m, m, p, nparms, dim);
-    // }
-    // catch (std::exception& exc) {
-    //     printf(exc.what());
-    // }
-    // ySy[0] += ySya;
-    // logdet[0] += logdeta;
-    // for (int j = 0; j < p; j++) {
-    //     ySX[j] += l_ySX[j];
-    //     for (int k = 0; k < p; k++) {
-    //         XSX[j * p + k] += l_XSX[j * m + k];
-    //         for (int l = 0; l < nparms; l++) {
-    //             dXSX[j * p * nparms + k * nparms + l] += l_dXSX[j * p * nparms + nparms * k + l];
-    //             //dXSX[j * p * nparms + k * nparms + l] += 0;
-    //         }
-    //     }
-    //     for (int k = 0; k < nparms; k++) {
-    //         dySX[j * nparms + k] += l_dySX[j * nparms + k];
-    //         //printf("%f ", l_dySX[i * p * nparms + j * nparms + k]);
-    //     }
-    // }
-
-    // for (int i = 0; i < nparms; i++) {
-    //     for (int j = 0; j < nparms; j++) {
-    //         ainfo[i * nparms + j] += l_ainfo[i * nparms + j];
-    //     }
-    // }
-
     
 }
 
