@@ -23,6 +23,16 @@ double* vecchia_Linv_gpu_batched(
     int m,
     int dim);
 
+extern "C"
+double** load_data(
+    const double* locs,
+    const double* NNarray,
+    const double* y,
+    const double* X,
+    int n, int m, int dim, int p, int nparms);
+
+extern "C"
+void free_data(double** data_stores);
 
 extern "C"
 int* nearest_neighbors(float* locs, int m, int n, int dim);
@@ -412,14 +422,13 @@ void compute_pieces2(
     int profbeta,
     int grad_info
 ){
-
+    // printf("compute_pieces2\n");
     // data dimensions
     int n = y.n_elem;
     int m = NNarray.n_cols;
     int p = X.n_cols;
     int nparms = covparms.n_elem;
     int dim = locs.n_cols;
-    
     // convert StringVector to std::string to use .compare() below
     // std::string covfun_name_string;
     // covfun_name_string = covfun_name[0];
@@ -448,7 +457,6 @@ void compute_pieces2(
 
     #pragma omp for	    
     for(int i=0; i<m; i++){
-    
         int bsize = std::min(i+1,m);
 
 	//std::vector<std::chrono::steady_clock::time_point> tt;
@@ -466,24 +474,18 @@ void compute_pieces2(
                 for(int k=0;k<p;k++){ X0(bsize-1-j,k) = X( NNarray(i,j)-1, k ); } 
             }
         }
-        
         // compute covariance matrix and derivatives and take cholesky
         // arma::mat covmat = p_covfun[0]( covparms, locsub );	
         arma::mat covmat = exponential_isotropic2(covparms, locsub);
-
-	
         arma::cube dcovmat;
         if(grad_info){ 
             dcovmat = d_exponential_isotropic2( covparms, locsub ); 
         }
-		
         arma::mat cholmat = eye( size(covmat) );
         chol( cholmat, covmat, "lower" );
-        
         // i1 is conditioning set, i2 is response        
         //arma::span i1 = span(0,bsize-2);
         arma::span i2 = span(bsize-1,bsize-1);
-        
         // get last row of cholmat
         arma::vec onevec = zeros(bsize);
         onevec(bsize-1) = 1.0;
@@ -492,7 +494,6 @@ void compute_pieces2(
             //choli2 = solve( trimatu(cholmat.t()), onevec );
             choli2 = backward_solve2( cholmat, onevec );
         }
-        
         bool cond = bsize > 1;
         //double fac = 1.0;
         
@@ -502,7 +503,6 @@ void compute_pieces2(
             //LiX0 = solve( trimatl(cholmat), X0 );
             LiX0 = forward_solve_mat2( cholmat, X0 );
         }
-
         //arma::vec Liy0 = solve( trimatl(cholmat), ysub );
         arma::vec Liy0 = forward_solve2( cholmat, ysub );
         
@@ -513,7 +513,6 @@ void compute_pieces2(
             l_XSX +=   LiX0.rows(i2).t() * LiX0.rows(i2);
             l_ySX += ( Liy0(i2) * LiX0.rows(i2) ).t();
         }
-        
         if( grad_info ){
         // gradient objects
         // LidSLi3 is last column of Li * (dS_j) * Lit for 1 parameter i
@@ -541,7 +540,6 @@ void compute_pieces2(
                 // store last column of Li * (dS_j) * Lit
                 LidSLi2.col(j) = LidSLi3;
             }
-
             // fisher information object
             // bottom right corner gets double counted, so subtract it off
             for(int i=0; i<nparms; i++){ for(int j=0; j<i+1; j++){
@@ -572,7 +570,6 @@ void compute_pieces2(
         }
         
         }
-
 	// if(i % 100 == 0 ){
 	//     for(int k=1; k<tt.size(); k++ ){
 	//         cout << std::chrono::duration_cast<std::chrono::microseconds>(tt[k]-tt[k-1]).count();
@@ -596,6 +593,7 @@ void compute_pieces2(
     *ainfo += l_ainfo;
 }
 }
+    // printf("compute_pieces2...done\n");
 }    
 
 void exponential_isotropic_likelihood(
@@ -683,6 +681,25 @@ void exponential_isotropic_likelihood(
     arma::mat ainfo = arma::mat(&ainfof[0], nparms, nparms);
     ainfo = ainfo.t();
 
+    // printf("XSX\n");
+    // XSX.print();
+    // printf("ySX\n");
+    // ySX.print();
+    // printf("ySy: %f\n", ySy);
+    // // ySyl.print();
+    // printf("logdet: %f\n", logdet);
+    // // logdetl.print();
+    // printf("dXSX\n");
+    // dXSX.print();
+    // printf("dySX\n");
+    // dySX.print();
+    // printf("dySy\n");
+    // dySy.print();
+    // printf("dlogdet\n");
+    // dlogdet.print();
+    // printf("ainfo\n");
+    // ainfo.print();
+
     //first m
 
     arma::mat XSXl = arma::mat(p, p, fill::zeros);
@@ -702,10 +719,40 @@ void exponential_isotropic_likelihood(
     arma::mat NNarray_c = arma::mat(NNarray.begin(), NNarray.nrow(), NNarray.ncol());
     arma::vec y_c = arma::vec(y.begin(),y.length());
     arma::mat X_c = arma::mat(X.begin(),X.nrow(),X.ncol());
-    
+
+    // printf("covparms_c\n");
+    // covparms_c.print();
+    // printf("locs_c\n");
+    // locs_c.print();
+    // printf("NNarray_c: %f\n", ySyl);
+    // NNarray_c.print();
+    // printf("y_c: %f\n", logdetl);
+    // y_c.print();
+    // printf("X_c\n");
+    // X_c.print();
+
     compute_pieces2(covparms_c, "exponential_isotropic", locs_c, NNarray_c, y_c, X_c, 
         &XSXl, &ySXl, &ySyl, &logdetl, &dXSXl, &dySXl, &dySyl,
         &dlogdetl, &ainfol, profbeta, grad_info);
+
+    // printf("XSXl\n");
+    // XSXl.print();
+    // printf("ySXl\n");
+    // ySXl.print();
+    // printf("ySyl: %f\n", ySyl);
+    // // ySyl.print();
+    // printf("logdetl: %f\n", logdetl);
+    // // logdetl.print();
+    // printf("dXSXl\n");
+    // dXSXl.print();
+    // printf("dySXl\n");
+    // dySXl.print();
+    // printf("dySyl\n");
+    // dySyl.print();
+    // printf("dlogdetl\n");
+    // dlogdetl.print();
+    // printf("ainfol\n");
+    // ainfol.print();
 
     XSX += XSXl;
     ySX += ySXl;
@@ -716,6 +763,17 @@ void exponential_isotropic_likelihood(
     dySy += dySyl;
     dlogdet += dlogdetl;
     ainfo += ainfol;
+
+    // printf("dlogdetl\n");
+    // dlogdetl.print();
+    // printf("dySyl\n");
+    // dySyl.print();
+    // printf("dySXl\n");
+    // dySXl.print();
+    // printf("ySXl\n");
+    // ySXl.print();
+    // printf("dXSXl\n");
+    // dXSXl.print();
 
 
     
@@ -766,6 +824,21 @@ void exponential_isotropic_likelihood(
         (*grad)(j) += 0.5*as_scalar( abeta.t() * dXSX.slice(j) * abeta );
         (*grad)(j) -= 1.0*as_scalar( abeta.t() * XSX * dbeta.col(j) );
     }
+    // printf("dlogdet\n");
+    // dlogdet.print();
+    // printf("dySy\n");
+    // dySy.print();
+    // printf("abeta\n");
+    // abeta.print();
+    // printf("dySX\n");
+    // dySX.print();
+    // printf("ySX\n");
+    // ySX.print();
+    // printf("dbeta\n");
+    // dbeta.print();
+    // printf("dXSX\n");
+    // dXSX.print();
+
     // fisher information
     for(int i=0; i<nparms; i++){ for(int j=0; j<i+1; j++){
         (*info)(i,j) = ainfo(i,j);
@@ -828,13 +901,593 @@ List vecchia_profbeta_loglik_gpu(
         
 }
 
+extern "C"
+void call_compute_pieces_fisher_gpu(
+    double* covparms,
+    // std::string covfun_name,
+    double* locs,
+    double* NNarray,
+    double* y,
+    double* X,
+    double* XSX,
+    double* ySX,
+    double* ySy,
+    double* logdet,
+    double* dXSX,
+    double* dySX,
+    double* dySy,
+    double* dlogdet,
+    double* ainfo,
+    int profbeta,
+    int grad_info,
+    int n,
+    int m,
+    int p,
+    int nparms,
+    int dim,
+    double** data_store
+);
+
+void likfun(arma::vec* grad, arma::mat* info, arma::mat* betainfo, arma::vec* ll, arma::vec* betahat,
+    double* locsl, double* NNarrayl, double* yl, double* Xl,
+    arma::vec dlogdet, arma::vec dySy, arma::mat ainfo, arma::mat XSXl, arma::vec ySXl, arma::cube dXSXl,
+    arma::vec dySyl, arma::vec dlogdetl, arma::mat ainfol, arma::mat dySXl,
+    arma::vec covparms_c, arma::mat locs_c, arma::mat NNarray_c, arma::vec y_c, arma::mat X_c,
+    double* XSXf, double* ySXf, double* dXSXf, double* dySXf, 
+    double* dySyf, double* dlogdetf, double* ainfof, bool profbeta, bool grad_info, 
+    int n, int m, int p, int nparms, int dim, double** loaded_data){
+
+
+    // XSXf = (double*)calloc(p * p, sizeof(double));
+    // ySXf = (double*)calloc(p * p, sizeof(double));
+
+
+    // dXSXf = (double*)calloc(p * p * nparms, sizeof(double));
+    // dySXf = (double*)calloc(p * nparms, sizeof(double));
+    // dySyf = (double*)calloc(nparms, sizeof(double));
+    // dlogdetf = (double*)calloc(nparms, sizeof(double));
+    // ainfof = (double*)calloc(nparms * nparms, sizeof(double));
+
+    
+    // dlogdet = arma::vec(&dlogdetf[0], nparms);
+    // dySy = arma::vec(&dySyf[0], nparms);
+    // ainfo = arma::mat(&ainfof[0], nparms, nparms);
+    // ainfo = ainfo.t();
+
+    //first m
+
+    // XSXl = arma::mat(p, p, fill::zeros);
+    // ySXl = arma::vec(p, fill::zeros);
+    // dXSXl = arma::cube(p,p,nparms,fill::zeros);
+    // dySXl = arma::mat(p, nparms, fill::zeros);
+    // dySyl = arma::vec(nparms, fill::zeros);
+    // dlogdetl = arma::vec(nparms, fill::zeros);
+    // // fisher information
+    // ainfol = arma::mat(nparms, nparms, fill::zeros);
+    // // printf("likfun\n");
+
+    double ySy = 0;
+    double logdet = 0;
+
+    double covparmsl[3] = { 0, 0, 0 };
+    covparmsl[0] = covparms_c[0];
+    covparmsl[1] = covparms_c[1];
+    covparmsl[2] = covparms_c[2];
+
+    
+
+    call_compute_pieces_fisher_gpu(covparmsl, locsl, NNarrayl, yl, Xl,
+            XSXf, ySXf, &ySy, &logdet,
+            dXSXf, dySXf, dySyf, dlogdetf, ainfof, profbeta, grad_info, n, m, p, nparms, dim, loaded_data);
+    
+    arma::mat XSX = arma::mat(&XSXf[0], p, p);
+    arma::vec ySX = arma::vec(&ySXf[0], p);
+    arma::mat dySX = arma::mat(&dySXf[0], nparms, p);
+    
+    // arma::cube dXSX = arma::cube(&dXSXf[0], p, p, nparms);
+    arma::cube dXSX = arma::cube(p, p, nparms, fill::zeros);
+    for(int j=0; j<nparms; j++){
+        for (int i = 0; i < p; i++){
+            for (int k = 0; k < p; k++){
+                dXSX.slice(j)(i, k) = dXSXf[k * p * nparms + i * nparms + j];
+            }
+        }
+    }
+
+    XSX = XSX.t();
+    // ySX = ySX.t();
+    dySX = dySX.t();
+
+    dlogdet = arma::vec(&dlogdetf[0], nparms);
+    dySy = arma::vec(&dySyf[0], nparms);
+    ainfo = arma::mat(&ainfof[0], nparms, nparms);
+    ainfo = ainfo.t();
+
+    // printf("XSX\n");
+    // XSX.print();
+    // printf("ySX\n");
+    // ySX.print();
+    // printf("ySy: %f\n", ySy);
+    // // ySyl.print();
+    // printf("logdet: %f\n", logdet);
+    // // logdetl.print();
+    // printf("dXSX\n");
+    // dXSX.print();
+    // printf("dySX\n");
+    // dySX.print();
+    // printf("dySy\n");
+    // dySy.print();
+    // printf("dlogdet\n");
+    // dlogdet.print();
+    // printf("ainfo\n");
+    // ainfo.print();
+    
+
+    double ySyl = 0;
+    double logdetl = 0;
+
+    // printf("(%i, %i)\n", locs_c.n_rows, locs_c.n_cols);
+    // printf("(%i, %i)\n", NNarray_c.n_rows, NNarray_c.n_cols);
+    // printf("(%i, %i)\n", X_c.n_rows, X_c.n_cols);
+    // printf("(%i, %i)\n", XSXl.n_rows, XSXl.n_cols);
+    // printf("(%i, %i)\n", ainfol.n_rows, ainfol.n_cols);
+    // printf("(%i, %i)\n", dySXl.n_rows, dySXl.n_cols);
+
+    // printf("(%i)\n", ySXl.n_elem);
+    // printf("(%i)\n", y_c.n_elem);
+    // printf("(%i)\n", dySyl.n_elem);
+    // printf("(%i)\n", dlogdetl.n_elem);
+    // printf("(%i)\n", covparms_c.n_elem);
+    
+
+    // printf("covparms_c\n");
+    // covparms_c.print();
+    // printf("locs_c\n");
+    // locs_c.print();
+    // printf("NNarray_c: %f\n", ySyl);
+    // NNarray_c.print();
+    // printf("y_c: %f\n", logdetl);
+    // y_c.print();
+    // printf("X_c\n");
+    // X_c.print();
+    
+
+
+
+    compute_pieces2(covparms_c, "exponential_isotropic", locs_c, NNarray_c, y_c, X_c, 
+        &XSXl, &ySXl, &ySyl, &logdetl, &dXSXl, &dySXl, &dySyl,
+        &dlogdetl, &ainfol, profbeta, grad_info);
+
+    // printf("XSXl\n");
+    // XSXl.print();
+    // printf("ySXl\n");
+    // ySXl.print();
+    // printf("ySyl: %f\n", ySyl);
+    // // ySyl.print();
+    // printf("logdetl: %f\n", logdetl);
+    // // logdetl.print();
+    // printf("dXSXl\n");
+    // dXSXl.print();
+    // printf("dySXl\n");
+    // dySXl.print();
+    // printf("dySyl\n");
+    // dySyl.print();
+    // printf("dlogdetl\n");
+    // dlogdetl.print();
+    // printf("ainfol\n");
+    // ainfol.print();
+    
+    
+    
+    
+    
+    XSX += XSXl;
+    ySX += ySXl;
+    ySy += ySyl;
+    logdet += logdetl;
+    dXSX += dXSXl;
+    dySX += dySXl;
+    dySy += dySyl;
+    dlogdet += dlogdetl;
+    ainfo += ainfol;
+
+    
+
+    arma::vec abeta = arma::vec( p, fill::zeros );
+    
+    if(profbeta){ abeta = solve( XSX, ySX ); }
+    
+    for(int j=0; j<p; j++){ (*betahat)(j) = abeta(j); };
+    
+    arma::mat dbeta = arma::mat(p,nparms, fill::zeros);
+    
+    if( profbeta && grad_info){
+        for(int j=0; j<nparms; j++){
+            dbeta.col(j) = solve( XSX, dySX.col(j) - dXSX.slice(j) * abeta );
+        }
+    }
+    // get sigmahatsq
+    double sig2 = ( ySy - 2.0*as_scalar( ySX.t() * abeta ) + 
+        as_scalar( abeta.t() * XSX * abeta ) )/n;
+    // loglikelihood
+    (*ll)(0) = -0.5*( n*std::log(2.0*M_PI) + logdet + n*sig2 ); 
+    
+    if(profbeta){
+    // betainfo
+    for(int i=0; i<p; i++){ for(int j=0; j<i+1; j++){
+        (*betainfo)(i,j) = XSX(i,j);
+        (*betainfo)(j,i) = XSX(j,i);
+    }}
+    }
+
+    if(grad_info){
+    // gradient
+    for(int j=0; j<nparms; j++){
+        (*grad)(j) = 0.0;
+        (*grad)(j) -= 0.5*dlogdet(j);
+        (*grad)(j) += 0.5*dySy(j);
+        (*grad)(j) -= 1.0*as_scalar( abeta.t() * dySX.col(j) );
+        (*grad)(j) += 1.0*as_scalar( ySX.t() * dbeta.col(j) );
+        (*grad)(j) += 0.5*as_scalar( abeta.t() * dXSX.slice(j) * abeta );
+        (*grad)(j) -= 1.0*as_scalar( abeta.t() * XSX * dbeta.col(j) );
+    }
+    // fisher information
+    for(int i=0; i<nparms; i++){ for(int j=0; j<i+1; j++){
+        (*info)(i,j) = ainfo(i,j);
+        (*info)(j,i) = (*info)(i,j);
+    }}
+    }
+
+    // printf("dlogdet\n");
+    // dlogdet.print();
+    // printf("dySy\n");
+    // dySy.print();
+    // printf("abeta\n");
+    // abeta.print();
+    // printf("dySX\n");
+    // dySX.print();
+    // printf("ySX\n");
+    // ySX.print();
+    // printf("dbeta\n");
+    // dbeta.print();
+    // printf("dXSX\n");
+    // dXSX.print();
+    // for(int j=0; j<nparms; j++){
+    //     (*grad)(j) = -(*grad)(j) * exp(covparms_c[j]); 
+    // }
+    // printf("likfun...done\n");
+}
+
+// [[Rcpp::export]]
+List fisher_scoring_gpu(
+    NumericVector start_params, 
+    NumericVector y,
+    NumericMatrix X,
+    NumericMatrix locs,
+    NumericMatrix NNarray,
+    bool silent,
+    double convtol,
+    int max_iter){
+    
+    // printf("fisher_scoring_gpu\n");
+
+    bool profbeta = true;
+    bool grad_info = true;
+
+    int n = y.length();
+    int m = NNarray.ncol();
+    int p = X.ncol();
+    int nparms = start_params.length();
+    int dim = locs.ncol();
+
+   
+
+    arma::vec ll_a = arma::vec(1, fill::zeros);
+    arma::vec grad_a = arma::vec(nparms, fill::zeros);
+    arma::vec betahat_a = arma::vec(p, fill::zeros);
+    arma::mat info_a = arma::mat(nparms, nparms, fill::zeros);
+    arma::mat betainfo_a = arma::mat(p, p, fill::zeros);
+
+    // double covparmsl[3] = { 0, 0, 0 };
+    // covparmsl[0] = start_params[0];
+    // covparmsl[1] = start_params[1];
+    // covparmsl[2] = start_params[2];
+    
+    double* locsl = (double*)malloc(sizeof(double) * n * dim);
+    double* NNarrayl = (double*) calloc(n * m, sizeof(double));//malloc(sizeof(double) * n * m);
+    double* yl = (double*)malloc(sizeof(double) * n);
+    double* Xl = (double*)malloc(sizeof(double) * n * p);
+    
+    for (int i = 0; i < n; i++) {
+        yl[i] = y[i];
+        for (int j = 0; j < m; j++) {
+            if (j < dim) {
+                locsl[i * dim + j] = locs(i, j);
+            }
+            if (j < p) {
+                Xl[i * p + j] = X(i, j);
+            }
+            if (j <= i){
+                NNarrayl[i * m + j] = NNarray(i, j);
+            }
+        }
+    }
+    double** loaded_data = load_data(locsl, NNarrayl, yl, Xl, n, m, dim, p, nparms);
+    double* XSXf = (double*)calloc(p * p, sizeof(double));
+    double* ySXf = (double*)calloc(p * p, sizeof(double));
+    double ySy = 0;
+    double logdet = 0;
+
+    double* dXSXf = (double*)calloc(p * p * nparms, sizeof(double));
+    double* dySXf = (double*)calloc(p * nparms, sizeof(double));
+    double* dySyf = (double*)calloc(nparms, sizeof(double));
+    double* dlogdetf = (double*)calloc(nparms, sizeof(double));
+    double* ainfof = (double*)calloc(nparms * nparms, sizeof(double));
+
+    
+    arma::vec dlogdet = arma::vec(&dlogdetf[0], nparms);
+    arma::vec dySy = arma::vec(&dySyf[0], nparms);
+    arma::mat ainfo = arma::mat(&ainfof[0], nparms, nparms);
+    ainfo = ainfo.t();
+
+    //first m
+
+    arma::mat XSXl = arma::mat(p, p, fill::zeros);
+    arma::vec ySXl = arma::vec(p, fill::zeros);
+    arma::cube dXSXl = arma::cube(p,p,nparms,fill::zeros);
+    arma::mat dySXl = arma::mat(p, nparms, fill::zeros);
+    arma::vec dySyl = arma::vec(nparms, fill::zeros);
+    arma::vec dlogdetl = arma::vec(nparms, fill::zeros);
+    // fisher information
+    arma::mat ainfol = arma::mat(nparms, nparms, fill::zeros);
+
+    arma::vec covparms_c = arma::vec(start_params.begin(),start_params.length());
+    arma::mat locs_c = arma::mat(locs.begin(), locs.nrow(), locs.ncol());
+    arma::mat NNarray_c = arma::mat(NNarray.begin(), NNarray.nrow(), NNarray.ncol());
+    arma::vec y_c = arma::vec(y.begin(),y.length());
+    arma::mat X_c = arma::mat(X.begin(),X.nrow(),X.ncol());
+
+    likfun(&grad_a, &info_a, &betainfo_a, &ll_a, &betahat_a,
+    locsl, NNarrayl, yl, Xl,
+    dlogdet, dySy, ainfo, XSXl, ySXl, dXSXl,
+    dySyl, dlogdetl, ainfol, dySXl,
+    exp(covparms_c), locs_c, NNarray_c, y_c, X_c,
+    XSXf, ySXf, dXSXf, dySXf, 
+    dySyf, dlogdetf, ainfof, profbeta, grad_info, 
+    n, m, p, nparms, dim, loaded_data);
+    
+    info_a = info_a % (exp(covparms_c) * exp(covparms_c).t());
+    ll_a = -ll_a;
+    grad_a = (-grad_a) % exp(covparms_c);
+    int i = 1;
+    double err = 10;
+    double stepgrad = 0;
+
+    // TODO
+    double reg = 0.1 * min(diagvec(info_a));
+    info_a(0,0) += reg;
+    info_a(1,1) += reg;
+    info_a(2,2) += reg;
+
+    double loglik_local = ll_a[0];
+    arma::vec grad_local = grad_a;
+    arma::mat info_local = info_a;
+
+    
+
+    if (!silent) {
+        printf("Iter %i:\n", 0);
+        printf("pars = %f, %f, %f\n", exp(covparms_c[0]), exp(covparms_c[1]), exp(covparms_c[2]));
+        printf("loglik = %f\n", -ll_a(0));
+        printf("grad = %f, %f, %f\n", -grad_a[0], -grad_a[1], -grad_a[2]);
+        printf("\n\n");
+    }
+
+    while (i < max_iter && err > convtol) {
+        double ll0 = ll_a(0);
+        
+        vec eigval;
+        mat eigvec;
+
+        eig_sym(eigval, eigvec, info_local);
+
+        double max_lambda = max(eigval);
+        double min_lambda = min(eigval);
+
+        double tol = 1e-10;
+        if (max_lambda / min_lambda > 1 / tol){
+            arma::vec ee_ratios = eigval / max_lambda;
+            for (int k = 0; k < ee_ratios.n_elem; k++) {
+                if (ee_ratios[k] < 1e-5) {
+                    ee_ratios[k] = 1e-5;
+                }
+            }
+            info_local = eigvec * arma::diagmat(ee_ratios) * eigvec.t();
+        }
+
+        // printf("det: %f\n", arma::det(info_a));
+        arma::vec step = -solve(info_local, grad_local);
+
+        if (mean(square(step)) > 1){
+            if(!silent) { printf("##\n"); }
+            step = step/sqrt(mean(square(step)));
+        }
+
+        arma::vec newlogparams = covparms_c + step;
+        
+        likfun(&grad_a, &info_a, &betainfo_a, &ll_a, &betahat_a,
+        locsl, NNarrayl, yl, Xl,
+        dlogdet, dySy, ainfo, XSXl, ySXl, dXSXl,
+        dySyl, dlogdetl, ainfol, dySXl,
+        exp(newlogparams), locs_c, NNarray_c, y_c, X_c,
+        XSXf, ySXf, dXSXf, dySXf, 
+        dySyf, dlogdetf, ainfof, profbeta, grad_info, 
+        n, m, p, nparms, dim, loaded_data);
+        info_a = info_a % (exp(newlogparams) * exp(newlogparams).t());
+        ll_a = -ll_a;
+        grad_a = (-grad_a) % exp(newlogparams);
+
+        
+        //////////////////////////////////
+        // check whether negative likelihood decreased
+        // take smaller stepsize
+        if (ll_a(0) > ll0) {
+            step = 0.25*step;
+            newlogparams = covparms_c + step;
+
+            likfun(&grad_a, &info_a, &betainfo_a, &ll_a, &betahat_a,
+            locsl, NNarrayl, yl, Xl,
+            dlogdet, dySy, ainfo, XSXl, ySXl, dXSXl,
+            dySyl, dlogdetl, ainfol, dySXl,
+            exp(newlogparams), locs_c, NNarray_c, y_c, X_c,
+            XSXf, ySXf, dXSXf, dySXf, 
+            dySyf, dlogdetf, ainfof, profbeta, grad_info, 
+            n, m, p, nparms, dim, loaded_data);
+            info_a = info_a % (exp(newlogparams) * exp(newlogparams).t());
+            ll_a = -ll_a;
+            grad_a = (-grad_a) % exp(newlogparams);
+        }
+
+        // check again, move along gradient
+        if(ll_a(0) > ll0) {
+            // info0 <- diag( rep(mean(diag(info)),nrow(info)) )
+            arma::mat info0 = info0.ones(nparms, nparms) * mean(diagvec(info_local));
+            // printf("det: %f\n", arma::det(info_a));
+            step = -solve(info0,grad_local);
+            newlogparams = covparms_c + step;
+            
+            likfun(&grad_a, &info_a, &betainfo_a, &ll_a, &betahat_a,
+            locsl, NNarrayl, yl, Xl,
+            dlogdet, dySy, ainfo, XSXl, ySXl, dXSXl,
+            dySyl, dlogdetl, ainfol, dySXl,
+            exp(newlogparams), locs_c, NNarray_c, y_c, X_c,
+            XSXf, ySXf, dXSXf, dySXf, 
+            dySyf, dlogdetf, ainfof, profbeta, grad_info, 
+            n, m, p, nparms, dim, loaded_data);
+            info_a = info_a % (exp(newlogparams) * exp(newlogparams).t());
+            ll_a = -ll_a;
+            grad_a = (-grad_a) % exp(newlogparams);
+        }
+
+        // check once move, take smaller step along gradient
+        if(ll_a(0) > ll0){
+            // info0 <- diag( rep(max(diag(info)),nrow(info)) )
+            arma::mat info0 = info0.ones(nparms, nparms) * max(diagvec(info_local));
+            // printf("det: %f\n", arma::det(info_a));
+            step = -solve(info0,grad_local);
+            newlogparams = covparms_c + step;
+            
+            likfun(&grad_a, &info_a, &betainfo_a, &ll_a, &betahat_a,
+            locsl, NNarrayl, yl, Xl,
+            dlogdet, dySy, ainfo, XSXl, ySXl, dXSXl,
+            dySyl, dlogdetl, ainfol, dySXl,
+            exp(newlogparams), locs_c, NNarray_c, y_c, X_c,
+            XSXf, ySXf, dXSXf, dySXf, 
+            dySyf, dlogdetf, ainfof, profbeta, grad_info, 
+            n, m, p, nparms, dim, loaded_data);
+            info_a = info_a % (exp(newlogparams) * exp(newlogparams).t());
+            ll_a = -ll_a;
+            grad_a = (-grad_a) % exp(newlogparams);
+        }
+
+        stepgrad = dot(step, grad_local);
+
+        covparms_c = covparms_c + step;
+        loglik_local = ll_a(0);
+        grad_local = grad_a;
+        info_local = info_a;
+
+        // if (i == 1){
+        //     step.print();
+        //     grad_a.print();
+        //     printf("stepgrad: %f\n", stepgrad);
+        // }
+        
+
+        if (!silent) {
+            printf("Iter %i:\n", i);
+            printf("pars = %f, %f, %f\n", exp(covparms_c[0]), exp(covparms_c[1]), exp(covparms_c[2]));
+            printf("loglik = %f\n", -loglik_local);
+            printf("grad = %f, %f, %f\n", grad_local[0], grad_local[1], grad_local[2]);
+            printf("step dot grad = %f\n",stepgrad);
+            printf("\n");
+        }
+
+        if(fabs(stepgrad) < convtol /*|| no_decrease*/){
+            break;
+        }
+
+        i++;
+    }
+    
+    NumericVector ll(1);
+    NumericVector grad( start_params.length() );
+    NumericVector betahat( X.ncol() );
+    NumericVector sebeta( X.ncol() );
+    NumericVector tbeta( X.ncol() );
+    NumericMatrix info( start_params.length(), start_params.length() );
+    NumericMatrix betainfo( X.ncol(), X.ncol() );
+    NumericMatrix betacov( X.ncol(), X.ncol() );
+    NumericVector covparms = {covparms_c[0], covparms_c[1], covparms_c[2]};
+    covparms_c = log(covparms_c);
+    NumericVector logparms = {covparms_c[0], covparms_c[1], covparms_c[2]};
+
+    // free_data(loaded_data);
+
+    ll[0] = loglik_local;
+    grad[0] = grad_local(0);
+    grad[1] = grad_local(1);
+    grad[2] = grad_local(2);
+
+    
+    arma::mat betacov_a = betainfo_a.i();
+    arma::vec sebeta_a = sqrt(diagvec(betacov_a));
+    arma::vec tbeta_a = betahat_a / sebeta_a;
+
+    // printf("betainfo_a\n");
+    // betainfo_a.print();
+    // printf("betacov_a\n");
+    // betacov_a.print();
+    // printf("sebeta_a\n");
+    // sebeta_a.print();
+    // printf("tbeta_a\n");
+    // tbeta_a.print();
+
+    for (int i = 0; i < p; i++) {
+        betahat[i] = betahat_a[i];
+        sebeta[i] = sebeta_a[i];
+        tbeta[i] = tbeta_a[i];
+    }
+
+    for (int i = 0; i < p; i++) {
+        for (int j = 0; j < p; j++) {
+            betainfo(i,j)= betainfo_a(i,j);
+            betacov(i,j)= betacov_a(i,j);
+        }
+    }
+
+    for (int i = 0; i < nparms; i++) {
+        for (int j = 0; j < nparms; j++) {
+            info(i,j)= info_local(i,j);
+        }
+    }
+
+    List ret = List::create( Named("covparms") = logparms, Named("logparms") = covparms,
+        Named("betahat") = betahat, Named("sebeta") = sebeta, Named("betacov") = betacov,
+        Named("tbeta")=tbeta, Named("loglik")= ll, Named("no_decrease")=false,Named("grad")=grad,
+        Named("info")=info, Named("conv")=false);
+    // printf("fisher_scoring_gpu...done\n");
+    return ret;
+
+}
+
 // [[Rcpp::export]]
 NumericVector Linv_mult_gpu(NumericMatrix Linv, NumericVector z, IntegerMatrix NNarray) {
     int n = z.length();
     int m = NNarray.ncol();
 
     double* Linvl = (double*)malloc(sizeof(double) * n * m);
-    double* NNarrayl = (double*) calloc(n * m, sizeof(double));//malloc(sizeof(double) * n * m);
+    double* NNarrayl = (double*) calloc(n * m, sizeof(double));
     double* zl = (double*)malloc(sizeof(double) * n);
     
     for (int i = 0; i < n; i++) {

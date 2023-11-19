@@ -97,8 +97,7 @@
 fit_model <- function(y, locs, X = NULL, covfun_name = "matern_isotropic",
     NNarray = NULL, start_parms = NULL, reorder = TRUE, group = TRUE,
     m_seq = c(10,30), max_iter = 40, fixed_parms = NULL,
-    silent = FALSE, st_scale = NULL, convtol = 1e-4, gpu = FALSE){
-	
+    silent = FALSE, st_scale = NULL, convtol = 1e-4, gpu = FALSE, prt = FALSE){
 	if (gpu && !covfun_name %in% c("exponential_isotropic")){
 		stop("covariance function not supported on gpu.")
 	} else if (gpu && group) {
@@ -181,7 +180,6 @@ fit_model <- function(y, locs, X = NULL, covfun_name = "matern_isotropic",
 
     # redefine n
     n <- length(y)
-    
     # check that start_parms is specified when fixed_parms is
     if( is.null(fixed_parms) ){
         if( is.null(start_parms) ){
@@ -333,8 +331,13 @@ fit_model <- function(y, locs, X = NULL, covfun_name = "matern_isotropic",
                 return(likobj)
             }
         }
-        fit <- fisher_scoring( likfun,invlink(start_parms)[active],
-            link,silent=silent, convtol = convtol, max_iter = max_iter )
+        if (gpu & !prt) {
+            fit <- fisher_scoring_gpu( invlink(start_parms)[active],
+            yord, Xord, locsord, NNarray[,1:(m+1)], silent=silent, convtol = convtol, max_iter = max_iter )
+        } else {
+            fit <- fisher_scoring( likfun,invlink(start_parms)[active],
+                link,silent=silent, convtol = convtol, max_iter = max_iter )
+        }
         invlink_startparms[active] <- fit$logparms
         #start_parms[active] <- fit$covparms
         start_parms <- link(invlink_startparms)
