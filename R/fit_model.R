@@ -332,8 +332,10 @@ fit_model <- function(y, locs, X = NULL, covfun_name = "matern_isotropic",
             }
         }
         if (gpu & !prt) {
+            fitlm <- stats::lm(yord ~ Xord - 1 )
+            vv <- summary(fitlm)$sigma^2
             fit <- fisher_scoring_gpu( invlink(start_parms)[active],
-            yord, Xord, locsord, NNarray[,1:(m+1)], silent=silent, convtol = convtol, max_iter = max_iter )
+            yord, Xord, locsord, NNarray[,1:(m+1)], vv, silent=silent, convtol = convtol, max_iter = max_iter )
         } else {
             fit <- fisher_scoring( likfun,invlink(start_parms)[active],
                 link,silent=silent, convtol = convtol, max_iter = max_iter )

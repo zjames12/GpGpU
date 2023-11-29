@@ -70,7 +70,7 @@ fisher_scoring <- function( likfun, start_parms, link,
     loglik <- likobj$loglik        
     grad <- likobj$grad
     info <- likobj$info
-    
+    # print(format(round(info, 6), nsmall = 6)) 
     # add a small amount of regularization
     diag(info) <- diag(info) + 0.1*min(diag(info))
 
@@ -85,9 +85,8 @@ fisher_scoring <- function( likfun, start_parms, link,
     }
     
     for(j in 1:max_iter){
-        
         likobj0 <- likobj
-        
+        # cat(paste0(round(likobj$loglik,6), "  \n"))
         # if condition number of info matrix large, 
         # then gradient descent
         tol <- 1e-10
@@ -105,8 +104,10 @@ fisher_scoring <- function( likfun, start_parms, link,
         }
 
         # calculate fisher step 
+        # print(format(round(info, 10), nsmall = 10))
+        # print(format(round(grad, 10), nsmall = 10))
         step <- -solve(info, grad)
-        
+        # print(format(round(step, 10), nsmall = 10))
         # if step size large, then make it smaller
         if (mean(step^2) > 1) {
             if(!silent) cat("##\n")
@@ -115,8 +116,9 @@ fisher_scoring <- function( likfun, start_parms, link,
         
         # take step and calculate loglik, grad, and info
         newlogparms <- logparms + step
+        # print(format(round(newlogparms, 6), nsmall = 6))
         likobj <- likfun(newlogparms)
-        
+        # cat(paste0(round(likobj$loglik,6), "  \n"))
         # check for Inf, NA, or NaN
         cnt <- 1
         while (!test_likelihood_object(likobj)) {
@@ -134,7 +136,7 @@ fisher_scoring <- function( likfun, start_parms, link,
             newlogparms <- logparms + step
             likobj <- likfun(newlogparms)
         }
-            
+        # cat(paste0(round(likobj$loglik,6), "  \n"))    
         # check again, move along gradient
         if( likobj$loglik > likobj0$loglik ){
             info0 <- diag( rep(mean(diag(info)),nrow(info)) )
@@ -142,7 +144,7 @@ fisher_scoring <- function( likfun, start_parms, link,
             newlogparms <- logparms + step
             likobj <- likfun(newlogparms)
         }
-            
+        # cat(paste0(round(likobj$loglik,6), "  \n"))    
         # check once move, take smaller step along gradient
         if( likobj$loglik > likobj0$loglik ){
             info0 <- diag( rep(max(diag(info)),nrow(info)) )
@@ -150,7 +152,7 @@ fisher_scoring <- function( likfun, start_parms, link,
             newlogparms <- logparms + step
             likobj <- likfun(newlogparms)
         }
-        
+        # cat(paste0(round(likobj$loglik,6), "  \n"))
         # Check the wolfe conditions
         # if not satisfied, shrink fisher step
         # after some iterations, switch to gradient
