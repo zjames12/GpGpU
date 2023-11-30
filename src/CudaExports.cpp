@@ -937,39 +937,39 @@ void likfun(arma::vec* grad, arma::mat* info, arma::mat* betainfo, arma::vec* ll
     double* dySyf, double* dlogdetf, double* ainfof, bool profbeta, bool grad_info, 
     int n, int m, int p, int nparms, int dim, double** loaded_data){
 
-    *ll = arma::vec(1, fill::zeros);
-    *grad = arma::vec(nparms, fill::zeros);
-    *betahat = arma::vec(p, fill::zeros);
-    *info = arma::mat(nparms, nparms, fill::zeros);
-    *betainfo = arma::mat(p, p, fill::zeros);
+    // *ll = arma::vec(1, fill::zeros);
+    // *grad = arma::vec(nparms, fill::zeros);
+    // *betahat = arma::vec(p, fill::zeros);
+    // *info = arma::mat(nparms, nparms, fill::zeros);
+    // *betainfo = arma::mat(p, p, fill::zeros);
 
-    XSXf = (double*)calloc(p * p, sizeof(double));
-    ySXf = (double*)calloc(p * p, sizeof(double));
+    // XSXf = (double*)calloc(p * p, sizeof(double));
+    // ySXf = (double*)calloc(p * p, sizeof(double));
 
 
-    dXSXf = (double*)calloc(p * p * nparms, sizeof(double));
-    dySXf = (double*)calloc(p * nparms, sizeof(double));
-    dySyf = (double*)calloc(nparms, sizeof(double));
-    dlogdetf = (double*)calloc(nparms, sizeof(double));
-    ainfof = (double*)calloc(nparms * nparms, sizeof(double));
+    // dXSXf = (double*)calloc(p * p * nparms, sizeof(double));
+    // dySXf = (double*)calloc(p * nparms, sizeof(double));
+    // dySyf = (double*)calloc(nparms, sizeof(double));
+    // dlogdetf = (double*)calloc(nparms, sizeof(double));
+    // ainfof = (double*)calloc(nparms * nparms, sizeof(double));
 
     
-    dlogdet = arma::vec(&dlogdetf[0], nparms);
-    dySy = arma::vec(&dySyf[0], nparms);
-    ainfo = arma::mat(&ainfof[0], nparms, nparms);
-    ainfo = ainfo.t();
+    // dlogdet = arma::vec(&dlogdetf[0], nparms);
+    // dySy = arma::vec(&dySyf[0], nparms);
+    // ainfo = arma::mat(&ainfof[0], nparms, nparms);
+    // ainfo = ainfo.t();
 
-    // first m
+    // // first m
 
-    XSXl = arma::mat(p, p, fill::zeros);
-    ySXl = arma::vec(p, fill::zeros);
-    dXSXl = arma::cube(p,p,nparms,fill::zeros);
-    dySXl = arma::mat(p, nparms, fill::zeros);
-    dySyl = arma::vec(nparms, fill::zeros);
-    dlogdetl = arma::vec(nparms, fill::zeros);
-    // fisher information
-    ainfol = arma::mat(nparms, nparms, fill::zeros);
-    // // printf("likfun\n");
+    // XSXl = arma::mat(p, p, fill::zeros);
+    // ySXl = arma::vec(p, fill::zeros);
+    // dXSXl = arma::cube(p,p,nparms,fill::zeros);
+    // dySXl = arma::mat(p, nparms, fill::zeros);
+    // dySyl = arma::vec(nparms, fill::zeros);
+    // dlogdetl = arma::vec(nparms, fill::zeros);
+    // // fisher information
+    // ainfol = arma::mat(nparms, nparms, fill::zeros);
+    // // // printf("likfun\n");
 
     double ySy = 0;
     double logdet = 0;
