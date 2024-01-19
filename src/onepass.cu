@@ -1817,11 +1817,15 @@ double** load_data(
 
 extern "C"
 void free_data(double** data_stores) {
-    // int num_pointers = 13;  
-    // for (int i = 0; i < num_pointers; i++) {
-    //     gpuErrchk(cudaFree(data_stores[i]));
-    // }
-    cudaDeviceReset();
+    int num_pointers = 13;  
+    for (int i = 0; i < num_pointers; i++) {
+        gpuErrchk(cudaFree(data_stores[i]));
+    }
+    for (int i = 13; i < 22; i++) {
+        free(data_stores[i]);
+    }
+    cudaDeviceSynchronize();
+    // cudaDeviceReset();
     
 }
 
@@ -2116,19 +2120,16 @@ void call_compute_pieces_fisher_gpu(
     // gpuErrchk(cudaMemcpy(d_y, y, sizeof(double) * n, cudaMemcpyHostToDevice));
     // gpuErrchk(cudaMemcpy(d_X, X, sizeof(double) * n * p, cudaMemcpyHostToDevice));
 
-    int grid_size = 64;
-    int block_size = ((n + grid_size) / grid_size);
+    int block_size = 512;
+    int grid_size = ((n + block_size) / block_size);
 
-    compute_pieces <<<block_size, grid_size>>> (d_y, d_X, d_NNarray, d_locs,/* d_locs_scaled,*/
+    compute_pieces <<<grid_size, block_size>>> (d_y, d_X, d_NNarray, d_locs,/* d_locs_scaled,*/
         /*d_covmat,*/ d_logdet, d_ySy, d_XSX, d_ySX,
         d_dXSX, d_dySX, d_dySy, d_dlogdet, d_ainfo,
         covparms[0], covparms[1], covparms[2],
         n, p, m, dim, nparms,
-        profbeta, grad_info//,
-        /*d_dcovmat,
-        d_ysub, d_X0, d_Liy0, d_LiX0, d_choli2, d_onevec,
-        d_LidSLi2, d_c, d_v1, d_LidSLi3*/);
-    gpuErrchk(cudaPeekAtLastError());
+        profbeta, grad_info);
+    // gpuErrchk(cudaPeekAtLastError());
     gpuErrchk(cudaDeviceSynchronize());
     
     // double* l_ySy = (double*)malloc(sizeof(double) * n);
