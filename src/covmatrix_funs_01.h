@@ -36,7 +36,7 @@ using namespace arma;
 //' The nugget value \eqn{ \sigma^2 \tau^2 } is added to the diagonal of the covariance matrix.
 //' NOTE: the nugget is \eqn{ \sigma^2 \tau^2 }, not \eqn{ \tau^2 }. 
 // [[Rcpp::export]]
-arma::mat exponential_isotropic(arma::vec covparms, arma::mat locs ){
+inline arma::mat exponential_isotropic(arma::vec covparms, arma::mat locs ){
 
     int dim = locs.n_cols;
     int n = locs.n_rows;
@@ -78,7 +78,7 @@ arma::mat exponential_isotropic(arma::vec covparms, arma::mat locs ){
 
 //' @describeIn exponential_isotropic Derivatives of isotropic exponential covariance
 // [[Rcpp::export]]
-arma::cube d_exponential_isotropic(arma::vec covparms, arma::mat locs ){
+inline arma::cube d_exponential_isotropic(arma::vec covparms, arma::mat locs ){
 
     int dim = locs.n_cols;
     int n = locs.n_rows;
@@ -136,7 +136,7 @@ arma::cube d_exponential_isotropic(arma::vec covparms, arma::mat locs ){
 //' The nugget value \eqn{ \sigma^2 \tau^2 } is added to the diagonal of the covariance matrix.
 //' NOTE: the nugget is \eqn{ \sigma^2 \tau^2 }, not \eqn{ \tau^2 }. 
 // [[Rcpp::export]]
-arma::mat matern_isotropic(arma::vec covparms, arma::mat locs ){
+inline arma::mat matern_isotropic(arma::vec covparms, arma::mat locs ){
 
 	// fail-safe to prevent large smoothness values
     covparms(2) = std::min( covparms(2), 8.0 );
@@ -186,7 +186,7 @@ arma::mat matern_isotropic(arma::vec covparms, arma::mat locs ){
 
 //' @describeIn matern_isotropic Derivatives of isotropic Matern covariance
 // [[Rcpp::export]]
-arma::cube d_matern_isotropic(arma::vec covparms, arma::mat locs ){
+inline arma::cube d_matern_isotropic(arma::vec covparms, arma::mat locs ){
 
 	// fail-safe to prevent large smoothness values
     covparms(2) = std::min( covparms(2), 8.0 );
@@ -272,7 +272,7 @@ arma::cube d_matern_isotropic(arma::vec covparms, arma::mat locs ){
 //' The nugget value \eqn{ \sigma^2 \tau^2 } is added to the diagonal of the covariance matrix.
 //' NOTE: the nugget is \eqn{ \sigma^2 \tau^2 }, not \eqn{ \tau^2 }. 
 // [[Rcpp::export]]
-arma::mat matern15_isotropic(arma::vec covparms, arma::mat locs ){
+inline arma::mat matern15_isotropic(arma::vec covparms, arma::mat locs ){
 
     int dim = locs.n_cols;
     int n = locs.n_rows;
@@ -311,7 +311,7 @@ arma::mat matern15_isotropic(arma::vec covparms, arma::mat locs ){
 //' @describeIn exponential_isotropic Derivatives of isotropic 
 //' matern covariance with smoothness 1.5
 // [[Rcpp::export]]
-arma::cube d_matern15_isotropic(arma::vec covparms, arma::mat locs ){
+inline arma::cube d_matern15_isotropic(arma::vec covparms, arma::mat locs ){
 
     int dim = locs.n_cols;
     int n = locs.n_rows;

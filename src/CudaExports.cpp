@@ -5,6 +5,10 @@
 using namespace Rcpp;
 using namespace arma;
 
+
+#include "covmatrix_funs.h"
+
+
 extern "C"
 double* vecchia_Linv_gpu_outer(
     double* covparms,
@@ -184,7 +188,7 @@ arma::mat vecchia_Linv_gpu_isotropic_exponential_batched(
 extern "C"
 void call_compute_pieces_gpu(
     double* covparms,
-    // std::string covfun_name,
+    const short covfun_name,
     double* locs,
     double* NNarray,
     double* y,
@@ -430,17 +434,17 @@ void compute_pieces2(
     int nparms = covparms.n_elem;
     int dim = locs.n_cols;
     // convert StringVector to std::string to use .compare() below
-    // std::string covfun_name_string;
-    // covfun_name_string = covfun_name[0];
+    std::string covfun_name_string;
+    covfun_name_string = covfun_name[0];
     
     // assign covariance fun and derivative based on covfun_name_string
 
     /* p_covfun is an array of length 1. Its entry is a pointer to a function which takes
      in arma::vec and arma::mat and returns mat. p_d_covfun is analogous. This was a workaround for the solaris bug*/
 
-    // mat (*p_covfun[1])(arma::vec, arma::mat);
-    // cube (*p_d_covfun[1])(arma::vec, arma::mat);
-    // get_covfun(covfun_name_string, p_covfun, p_d_covfun);
+    mat (*p_covfun[1])(arma::vec, arma::mat);
+    cube (*p_d_covfun[1])(arma::vec, arma::mat);
+    get_covfun(covfun_name_string, p_covfun, p_d_covfun);
     
 
 #pragma omp parallel 
@@ -475,11 +479,12 @@ void compute_pieces2(
             }
         }
         // compute covariance matrix and derivatives and take cholesky
-        // arma::mat covmat = p_covfun[0]( covparms, locsub );	
-        arma::mat covmat = exponential_isotropic2(covparms, locsub);
+        arma::mat covmat = p_covfun[0]( covparms, locsub );	
+        // arma::mat covmat = exponential_isotropic2(covparms, locsub);
         arma::cube dcovmat;
         if(grad_info){ 
-            dcovmat = d_exponential_isotropic2( covparms, locsub ); 
+            // dcovmat = d_exponential_isotropic2( covparms, locsub ); 
+            dcovmat = p_d_covfun[0]( covparms, locsub ); 
         }
         arma::mat cholmat = eye( size(covmat) );
         chol( cholmat, covmat, "lower" );
@@ -596,8 +601,9 @@ void compute_pieces2(
     // printf("compute_pieces2...done\n");
 }    
 
-void exponential_isotropic_likelihood(
+void likelihood(
     NumericVector covparms,
+    StringVector covfun_name,
     NumericMatrix locs,
     NumericMatrix NNarray,
     NumericVector y,
@@ -610,17 +616,28 @@ void exponential_isotropic_likelihood(
     bool profbeta,
     bool grad_info
 ) {
-    
+    short covfun_name_index = 0;
+    std::string covfun_name_string;
+    covfun_name_string = covfun_name[0];
+    if (covfun_name_string.compare("exponential_isotropic") == 0) {
+        covfun_name_index = 0;
+    } else if (covfun_name_string.compare("exponential_scaledim") == 0) {
+        covfun_name_index = 1;
+    }
+
     int n = y.length();
     int m = NNarray.ncol();
     int p = X.ncol();
     int nparms = covparms.length();
     int dim = locs.ncol();
 
-    double covparmsl[3] = { 0, 0, 0 };
-    covparmsl[0] = covparms[0];
-    covparmsl[1] = covparms[1];
-    covparmsl[2] = covparms[2];
+    double* covparmsl = (double*)malloc(sizeof(double) * nparms);
+    // covparmsl[0] = covparms[0];
+    // covparmsl[1] = covparms[1];
+    // covparmsl[2] = covparms[2];
+    for (int i = 0; i < nparms; i++) {
+        covparmsl[i] = covparms[i];
+    }
     
     double* locsl = (double*)malloc(sizeof(double) * n * dim);
     double* NNarrayl = (double*) calloc(n * m, sizeof(double));//malloc(sizeof(double) * n * m);
@@ -654,11 +671,11 @@ void exponential_isotropic_likelihood(
     double* dlogdetf = (double*)calloc(nparms, sizeof(double));
     double* ainfof = (double*)calloc(nparms * nparms, sizeof(double));
 
-    call_compute_pieces_gpu(covparmsl, /*covfun_name,*/ locsl, NNarrayl, yl, Xl,
+    call_compute_pieces_gpu(covparmsl, covfun_name_index, locsl, NNarrayl, yl, Xl,
         XSXf, ySXf, &ySy, &logdet,
         dXSXf, dySXf, dySyf, dlogdetf, ainfof, profbeta, grad_info, n, m, p, nparms, dim);
 
-    
+    // printf("XSXf %f\n", XSXf[0]);
     arma::mat XSX = arma::mat(&XSXf[0], p, p);
     arma::vec ySX = arma::vec(&ySXf[0], p);
     arma::mat dySX = arma::mat(&dySXf[0], nparms, p);
@@ -731,28 +748,9 @@ void exponential_isotropic_likelihood(
     // printf("X_c\n");
     // X_c.print();
 
-    compute_pieces2(covparms_c, "exponential_isotropic", locs_c, NNarray_c, y_c, X_c, 
+    compute_pieces2(covparms_c, covfun_name, locs_c, NNarray_c, y_c, X_c, 
         &XSXl, &ySXl, &ySyl, &logdetl, &dXSXl, &dySXl, &dySyl,
         &dlogdetl, &ainfol, profbeta, grad_info);
-
-    // printf("XSXl\n");
-    // XSXl.print();
-    // printf("ySXl\n");
-    // ySXl.print();
-    // printf("ySyl: %f\n", ySyl);
-    // // ySyl.print();
-    // printf("logdetl: %f\n", logdetl);
-    // // logdetl.print();
-    // printf("dXSXl\n");
-    // dXSXl.print();
-    // printf("dySXl\n");
-    // dySXl.print();
-    // printf("dySyl\n");
-    // dySyl.print();
-    // printf("dlogdetl\n");
-    // dlogdetl.print();
-    // printf("ainfol\n");
-    // ainfol.print();
 
     XSX += XSXl;
     ySX += ySXl;
@@ -763,17 +761,6 @@ void exponential_isotropic_likelihood(
     dySy += dySyl;
     dlogdet += dlogdetl;
     ainfo += ainfol;
-
-    // printf("dlogdetl\n");
-    // dlogdetl.print();
-    // printf("dySyl\n");
-    // dySyl.print();
-    // printf("dySXl\n");
-    // dySXl.print();
-    // printf("ySXl\n");
-    // ySXl.print();
-    // printf("dXSXl\n");
-    // dXSXl.print();
 
 
     
@@ -787,7 +774,7 @@ void exponential_isotropic_likelihood(
     
     // betahat and dbeta
     arma::vec abeta = arma::vec( p, fill::zeros );
-    
+    // XSX.print();
     if(profbeta){ abeta = solve( XSX, ySX ); }
     
     for(int j=0; j<p; j++){ (*betahat)(j) = abeta(j); };
@@ -852,6 +839,7 @@ void exponential_isotropic_likelihood(
 // [[Rcpp::export]]
 List vecchia_profbeta_loglik_grad_info_gpu( 
     NumericVector covparms, 
+    StringVector covfun_name,
     NumericVector y,
     NumericMatrix X,
     const NumericMatrix locs,
@@ -865,7 +853,7 @@ List vecchia_profbeta_loglik_grad_info_gpu(
 
     // this function calls arma_onepass_compute_pieces
     // then synthesizes the result into loglik, beta, grad, info, betainfo
-    exponential_isotropic_likelihood(covparms, locs, NNarray, y, X,
+    likelihood(covparms, covfun_name, locs, NNarray, y, X,
         &ll, &betahat, &grad, &info, &betainfo, true, true 
     );
     
@@ -878,6 +866,7 @@ List vecchia_profbeta_loglik_grad_info_gpu(
 // [[Rcpp::export]]
 List vecchia_profbeta_loglik_gpu( 
     NumericVector covparms, 
+    StringVector covfun_name,
     NumericVector y,
     NumericMatrix X,
     const NumericMatrix locs,
@@ -891,7 +880,7 @@ List vecchia_profbeta_loglik_gpu(
 
     // this function calls arma_onepass_compute_pieces
     // then synthesizes the result into loglik, beta, grad, info, betainfo
-    exponential_isotropic_likelihood(covparms, locs, NNarray, y, X,
+    likelihood(covparms, covfun_name, locs, NNarray, y, X,
         &ll, &betahat, &grad, &info, &betainfo, true, false 
     );
     
@@ -1007,94 +996,30 @@ void likfun(arma::vec* grad, arma::mat* info, arma::mat* betainfo, arma::vec* ll
     dySy = arma::vec(&dySyf[0], nparms);
     ainfo = arma::mat(&ainfof[0], nparms, nparms);
     ainfo = ainfo.t();
-
-    // printf("XSX\n");
-    // XSX.print();
-    // printf("ySX\n");
-    // ySX.print();
-    // printf("ySy: %f\n", ySy);
-    // // ySyl.print();
-    // printf("logdet: %f\n", logdet);
-    // // logdetl.print();
-    // printf("dXSX\n");
-    // dXSX.print();
-    // printf("dySX\n");
-    // dySX.print();
-    // printf("dySy\n");
-    // dySy.print();
-    // printf("dlogdet\n");
-    // dlogdet.print();
-    // printf("ainfo\n");
-    // ainfo.print();
     
 
     double ySyl = 0;
     double logdetl = 0;
 
-    // printf("(%i, %i)\n", locs_c.n_rows, locs_c.n_cols);
-    // printf("(%i, %i)\n", NNarray_c.n_rows, NNarray_c.n_cols);
-    // printf("(%i, %i)\n", X_c.n_rows, X_c.n_cols);
-    // printf("(%i, %i)\n", XSXl.n_rows, XSXl.n_cols);
-    // printf("(%i, %i)\n", ainfol.n_rows, ainfol.n_cols);
-    // printf("(%i, %i)\n", dySXl.n_rows, dySXl.n_cols);
-
-    // printf("(%i)\n", ySXl.n_elem);
-    // printf("(%i)\n", y_c.n_elem);
-    // printf("(%i)\n", dySyl.n_elem);
-    // printf("(%i)\n", dlogdetl.n_elem);
-    // printf("(%i)\n", covparms_c.n_elem);
-    
-
-    // printf("covparms_c\n");
-    // covparms_c.print();
-    // printf("locs_c\n");
-    // locs_c.print();
-    // printf("NNarray_c: %f\n", ySyl);
-    // NNarray_c.print();
-    // printf("y_c: %f\n", logdetl);
-    // y_c.print();
-    // printf("X_c\n");
-    // X_c.print();
-    
 
 
-
-    compute_pieces2(covparms_c, "exponential_isotropic", locs_c, NNarray_c, y_c, X_c, 
-        &XSXl, &ySXl, &ySyl, &logdetl, &dXSXl, &dySXl, &dySyl,
-        &dlogdetl, &ainfol, profbeta, grad_info);
-
-    // printf("XSXl\n");
-    // XSXl.print();
-    // printf("ySXl\n");
-    // ySXl.print();
-    // printf("ySyl: %f\n", ySyl);
-    // // ySyl.print();
-    // printf("logdetl: %f\n", logdetl);
-    // // logdetl.print();
-    // printf("dXSXl\n");
-    // dXSXl.print();
-    // printf("dySXl\n");
-    // dySXl.print();
-    // printf("dySyl\n");
-    // dySyl.print();
-    // printf("dlogdetl\n");
-    // dlogdetl.print();
-    // printf("ainfol\n");
-    // ainfol.print();
+    // compute_pieces2(covparms_c, "exponential_isotropic", locs_c, NNarray_c, y_c, X_c, 
+    //     &XSXl, &ySXl, &ySyl, &logdetl, &dXSXl, &dySXl, &dySyl,
+    //     &dlogdetl, &ainfol, profbeta, grad_info);
     
     
     
     
     
-    XSX += XSXl;
-    ySX += ySXl;
-    ySy += ySyl;
-    logdet += logdetl;
-    dXSX += dXSXl;
-    dySX += dySXl;
-    dySy += dySyl;
-    dlogdet += dlogdetl;
-    ainfo += ainfol;
+    // XSX += XSXl;
+    // ySX += ySXl;
+    // ySy += ySyl;
+    // logdet += logdetl;
+    // dXSX += dXSXl;
+    // dySX += dySXl;
+    // dySy += dySyl;
+    // dlogdet += dlogdetl;
+    // ainfo += ainfol;
 
     
 

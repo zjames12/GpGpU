@@ -34,7 +34,7 @@ using namespace arma;
 //' The nugget value \eqn{ \sigma^2 \tau^2 } is added to the diagonal of the covariance matrix.
 //' NOTE: the nugget is \eqn{ \sigma^2 \tau^2 }, not \eqn{ \tau^2 }. 
 // [[Rcpp::export]]
-arma::mat matern_scaledim(arma::vec covparms, arma::mat locs ){
+inline arma::mat matern_scaledim(arma::vec covparms, arma::mat locs ){
 
     int dim = locs.n_cols;
 
@@ -84,7 +84,7 @@ arma::mat matern_scaledim(arma::vec covparms, arma::mat locs ){
 
 //' @describeIn matern_scaledim Derivatives with respect to parameters
 // [[Rcpp::export]]
-arma::cube d_matern_scaledim(arma::vec covparms, arma::mat locs ){
+inline arma::cube d_matern_scaledim(arma::vec covparms, arma::mat locs ){
 
     int dim = locs.n_cols;
     if( covparms.n_elem - 3 != dim ){
@@ -172,7 +172,7 @@ arma::cube d_matern_scaledim(arma::vec covparms, arma::mat locs ){
 //' The nugget value \eqn{ \sigma^2 \tau^2 } is added to the diagonal of the covariance matrix.
 //' NOTE: the nugget is \eqn{ \sigma^2 \tau^2 }, not \eqn{ \tau^2 }. 
 // [[Rcpp::export]]
-arma::mat exponential_scaledim(arma::vec covparms, arma::mat locs ){
+inline arma::mat exponential_scaledim(arma::vec covparms, arma::mat locs ){
 
     int dim = locs.n_cols;
 
@@ -218,7 +218,7 @@ arma::mat exponential_scaledim(arma::vec covparms, arma::mat locs ){
 
 //' @describeIn exponential_scaledim Derivatives with respect to parameters
 // [[Rcpp::export]]
-arma::cube d_exponential_scaledim(arma::vec covparms, arma::mat locs ){
+inline arma::cube d_exponential_scaledim(arma::vec covparms, arma::mat locs ){
 
     int dim = locs.n_cols;
     if( covparms.n_elem - 2 != dim ){
@@ -300,7 +300,7 @@ arma::cube d_exponential_scaledim(arma::vec covparms, arma::mat locs ){
 //' The nugget value \eqn{ \sigma^2 \tau^2 } is added to the diagonal of the covariance matrix.
 //' NOTE: the nugget is \eqn{ \sigma^2 \tau^2 }, not \eqn{ \tau^2 }. 
 // [[Rcpp::export]]
-arma::mat matern_spacetime(arma::vec covparms, arma::mat locs ){
+inline arma::mat matern_spacetime(arma::vec covparms, arma::mat locs ){
     
     // number of spatial dimensions
     int dim = locs.n_cols - 1;
@@ -329,7 +329,7 @@ arma::mat matern_spacetime(arma::vec covparms, arma::mat locs ){
 
 //' @describeIn matern_spacetime Derivatives with respect to parameters
 // [[Rcpp::export]]
-arma::cube d_matern_spacetime(arma::vec covparms, arma::mat locs ){
+inline arma::cube d_matern_spacetime(arma::vec covparms, arma::mat locs ){
     
     // number of spatial dimensions
     int dim = locs.n_cols - 1;
@@ -425,7 +425,7 @@ arma::cube d_matern_spacetime(arma::vec covparms, arma::mat locs ){
 //' The nugget value \eqn{ \sigma^2 \tau^2 } is added to the diagonal of the covariance matrix.
 //' NOTE: the nugget is \eqn{ \sigma^2 \tau^2 }, not \eqn{ \tau^2 }. 
 // [[Rcpp::export]]
-arma::mat exponential_spacetime(arma::vec covparms, arma::mat locs ){
+inline arma::mat exponential_spacetime(arma::vec covparms, arma::mat locs ){
     
     // number of spatial dimensions
     int dim = locs.n_cols - 1;
@@ -453,7 +453,7 @@ arma::mat exponential_spacetime(arma::vec covparms, arma::mat locs ){
 
 //' @describeIn exponential_spacetime Derivatives with respect to parameters
 // [[Rcpp::export]]
-arma::cube d_exponential_spacetime(arma::vec covparms, arma::mat locs ){
+inline arma::cube d_exponential_spacetime(arma::vec covparms, arma::mat locs ){
     
     // number of spatial dimensions
     int dim = locs.n_cols - 1;
