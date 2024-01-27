@@ -623,6 +623,10 @@ void likelihood(
         covfun_name_index = 0;
     } else if (covfun_name_string.compare("exponential_scaledim") == 0) {
         covfun_name_index = 1;
+    } else if (covfun_name_string.compare("exponential_spacetime") == 0) {
+        covfun_name_index = 2;
+    } else if (covfun_name_string.compare("exponential_spheretime") == 0) {
+        covfun_name_index = 3;
     }
 
     int n = y.length();
@@ -762,7 +766,24 @@ void likelihood(
     dlogdet += dlogdetl;
     ainfo += ainfol;
 
-
+    // printf("XSX\n");
+    // XSX.print();
+    // printf("ySX\n");
+    // ySX.print();
+    // printf("ySy: %f\n", ySy);
+    // // ySyl.print();
+    // printf("logdet: %f\n", logdet);
+    // // logdetl.print();
+    // printf("dXSX\n");
+    // dXSX.print();
+    // printf("dySX\n");
+    // dySX.print();
+    // printf("dySy\n");
+    // dySy.print();
+    // printf("dlogdet\n");
+    // dlogdet.print();
+    // printf("ainfo\n");
+    // ainfo.print();
     
     // NumericVector ll(1);
     // NumericVector grad( covparms.length() );

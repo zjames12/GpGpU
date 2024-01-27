@@ -1076,12 +1076,47 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
         double covmat[31 * 31];
         double temp;
 
-        if (covfun_name == EXPONENTIAL_ISOTROPIC) {
-            exponential_isotropic(covparms, locsub, covmat, dim, m);
-        } else if (covfun_name == EXPONENTIAL_SCALEDIM) {
-            exponential_scaledim(covparms, locsub, covmat, dim, m);
+        
+        covariance_func(covfun_name, covparms, locsub, covmat, dim, m);
+
+       if (i == 50) {
+            // // printf("%f \n", logdet[i]);
+            // // printf("%f \n", ySy[i]);
+            // for (int j = 0; j < nparms; j++) {
+            //     printf("%f ", covparms[j]);
+            // }
+            // printf("\n");
+            // for (int j = 0; j < m; j++) {
+            //     for (int k = 0; k < m; k++) {
+            //         printf("%f ", covmat[j * m + k]);
+            //     }
+            //     printf("\n");
+            // }
+            // for (int j = 0; j < m; j++) {
+            //     for (int k = 0; k < p; k++) {
+            //         printf("%f ", X0[j * p + k]);
+            //     }
+            //     printf("\n");
+            // }
+            // printf("\n");
+            // for (int j = 0; j < m; j++) {
+            //     for (int k = 0; k < p; k++) {
+            //         printf("%f ", LiX0[j * p + k]);
+            //     }
+            //     printf("\n");
+            // }
+
+            // for (int j = 0; j < p; j++) {
+            //     for (int k = 0; k < p; k++) {
+            //         printf("%f ", XSX[i * p * p + j * p + k]);
+            //     }
+            //     printf("\n");
+            // }
+            // for (int j = 0; j < m; j++) {
+            //     printf("%f ", Liy0[j]);
+            // }
+            // printf("\n\n");
         }
-       
         
         
         double dcovmat[31 * 31 * 6];
@@ -1089,15 +1124,12 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
             // calculate derivatives
             //arma::cube dcovmat = arma::cube(n, n, covparms.n_elem, fill::zeros);
             //dcovmat = (double*)malloc(sizeof(double) * m * m * nparms);
-            if (covfun_name == EXPONENTIAL_ISOTROPIC) {
-                d_exponential_isotropic(covparms, locsub, dcovmat, dim, m, nparms);
-            } else if (covfun_name == EXPONENTIAL_SCALEDIM) {
-                d_exponential_scaledim(covparms, locsub, dcovmat, dim, m, nparms);
-
-            }
+            d_covariance_func(covfun_name, covparms, locsub, dcovmat, dim, m, nparms);
         }
 
         // if (i == 100) {
+        //     // printf("name: %i \n", covfun_name);
+            
         //     for (int j = 0; j < nparms; j++) {
         //         printf("%f ", covparms[j]);
         //     }
@@ -1177,7 +1209,16 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
         
         //bool cond = bsize > 1;
         double LiX0[31 * 10];
+        for (int j = 0; j < 31 * 10; j++) {
+            LiX0[j] = 0;
+        }
         // do solves with X and y
+        for (int j = 0; j < m; j++) {
+            for (int k = j + 1; k < m; k++) {
+                // covmat[i * m * m + j * m + k] = 0.0;
+                covmat[j * m + k] = 0.0;
+            }
+        }
         if (profbeta) {
             // LiX0 = forward_solve_mat(cholmat, X0, m, p);
             for (int k = 0; k < p; k++) {
@@ -1200,12 +1241,9 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
             
 
         }
-        for (int j = 0; j < m; j++) {
-            for (int k = j + 1; k < m; k++) {
-                // covmat[i * m * m + j * m + k] = 0.0;
-                covmat[j * m + k] = 0.0;
-            }
-        }
+
+        
+        
 
         //arma::vec Liy0 = solve( trimatl(cholmat), ysub );
         //double* Liy0 = forward_solve(cholmat, ysub, m);
@@ -1236,7 +1274,9 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
         // temp = Liy0[i * m + m - 1];
         temp = Liy0[m - 1];
         ySy[i] = temp * temp;
-
+        // if (i == 100) {
+        //     printf("kern: %f\n", temp * temp);
+        // }
         
         if (profbeta) {
             /*l_XSX += LiX0.rows(i2).t() * LiX0.rows(i2);
@@ -1251,13 +1291,14 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
                     // XSX[i * p * p + i2 * p + i1] = XSX[i * p * p + i1 * p + i2];
 
                     XSX[i * p * p + i1 * p + i2] = temp * LiX0[(m - 1) * p + i2];
-                    XSX[i * p * p + i2 * p + i1] = XSX[i * p * p + i1 * p + i2];
+                    XSX[i * p * p + i2 * p + i1] = XSX[i * p * p + i1 * p + i2]; 
                 }
                 // ySX[i * p + i1] = temp2 * LiX0[i * m * p + (m - 1) * p + i1];
                 ySX[i * p + i1] = temp2 * LiX0[(m - 1) * p + i1];
             }
             
         }
+        
         double LidSLi3[31];
         double c[31];
 		double LidSLi2[31 * 8];
@@ -1960,34 +2001,85 @@ void call_compute_pieces_gpu(
     gpuErrchk(cudaFree(d_y));
     gpuErrchk(cudaFree(d_X));
 
+    // ySy[0] = 0;
+    // logdet[0] = 0;
+    // for (int i = 0; i < n; i++) {
+        
+    //     ySy[0] += l_ySy[i];
+    //     logdet[0] += l_logdet[i];
+    //     for (int j = 0; j < p; j++) {
+    //         ySX[j] += l_ySX[i * p + j];
+    //         for (int k = 0; k < p; k++) {
+    //             XSX[j * p + k] += l_XSX[i * p * p + j * p + k];
+    //             for (int l = 0; l < nparms; l++) {
+    //                 dXSX[j * p * nparms + k * nparms + l] += l_dXSX[i * p * p * nparms + j * p * nparms + k * nparms + l];
+    //                 //dXSX[j * p * nparms + k * nparms + l] += 0;
+    //             }
+    //         }
+    //         for (int k = 0; k < nparms; k++) {
+    //             dySX[j * nparms + k] += l_dySX[i * p * nparms + j * nparms + k];
+    //             //printf("%f ", l_dySX[i * p * nparms + j * nparms + k]);
+    //         }
+    //     }
+    //     for (int j = 0; j < nparms; j++) {
+    //         dySy[j] += l_dySy[i * nparms + j];
+    //         dlogdet[j] += l_dlogdet[i * nparms + j];
+    //         for (int k = 0; k < nparms; k++) {
+    //             ainfo[j * nparms + k] += l_ainfo[i * nparms * nparms + j * nparms + k];
+    //         }
+    //     }
+    // }
+
     ySy[0] = 0;
     logdet[0] = 0;
-    for (int i = 0; i < n; i++) {
-        
+    for (int i = m; i < n; i++) {
+        // printf("%i, %f\n", i, l_ySy[i]);
         ySy[0] += l_ySy[i];
         logdet[0] += l_logdet[i];
+        
         for (int j = 0; j < p; j++) {
+            if (i == m) {
+                ySX[j] = 0;
+            }
+            
             ySX[j] += l_ySX[i * p + j];
             for (int k = 0; k < p; k++) {
+                if (i == m) {
+                    XSX[j * p + k] = 0;
+                }
                 XSX[j * p + k] += l_XSX[i * p * p + j * p + k];
                 for (int l = 0; l < nparms; l++) {
+                    if (i == m) {
+                        dXSX[j * p * nparms + k * nparms + l] = 0;
+                    }
                     dXSX[j * p * nparms + k * nparms + l] += l_dXSX[i * p * p * nparms + j * p * nparms + k * nparms + l];
                     //dXSX[j * p * nparms + k * nparms + l] += 0;
                 }
             }
             for (int k = 0; k < nparms; k++) {
+                if (i == m) {
+                    dySX[j * nparms + k] = 0;
+                }
                 dySX[j * nparms + k] += l_dySX[i * p * nparms + j * nparms + k];
                 //printf("%f ", l_dySX[i * p * nparms + j * nparms + k]);
             }
         }
         for (int j = 0; j < nparms; j++) {
+            if (i == m) {
+                dySy[j] = 0;
+                dlogdet[j] = 0;
+            }
             dySy[j] += l_dySy[i * nparms + j];
             dlogdet[j] += l_dlogdet[i * nparms + j];
             for (int k = 0; k < nparms; k++) {
+                if (i == m) {
+                    ainfo[j * nparms + k] = 0;
+                }
                 ainfo[j * nparms + k] += l_ainfo[i * nparms * nparms + j * nparms + k];
             }
         }
     }
+
     free(l_ySy);
     free(l_logdet);
     free(l_ySX);
@@ -1997,7 +2089,7 @@ void call_compute_pieces_gpu(
     free(l_dySy);
     free(l_dlogdet);
     free(l_ainfo);
-
+    // cudaDeviceReset();
     
     
 }

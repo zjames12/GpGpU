@@ -100,7 +100,9 @@ fit_model <- function(y, locs, X = NULL, covfun_name = "matern_isotropic",
     silent = FALSE, st_scale = NULL, convtol = 1e-4, gpu = FALSE){
 	if (gpu && !covfun_name %in% 
     c("exponential_isotropic",
-    "exponential_scaledim")){
+    "exponential_scaledim",
+    "exponential_spacetime",
+    "exponential_spheretime")){
 		stop("covariance function not supported on gpu.")
 	} else if (gpu && group) {
 		stop("group calculation not supported on gpu")
