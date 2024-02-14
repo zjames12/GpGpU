@@ -1,6 +1,7 @@
 {
     "r.lsp.promptToInstall": false,
     "files.associations": {
-        "xstring": "cpp"
+        "xstring": "cpp",
+        "cmath": "cpp"
     }
 }

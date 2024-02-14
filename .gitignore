@@ -6,4 +6,5 @@ inst/doc
 .gitignore~
 src/*.so
 src/*.o
+.vscode/*.json
 .vscode

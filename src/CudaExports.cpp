@@ -12,11 +12,24 @@ using namespace arma;
 extern "C"
 double* vecchia_Linv_gpu_outer(
     double* covparms,
+    short covfun_name,
     double* locs,
     double* NNarray,
     int n,
     int m,
-    int dim);
+    int dim,
+    int nparms);
+
+extern "C"
+float* vecchia_Linv_gpu_outer_single(
+    float* covparms,
+    short covfun_name,
+    float* locs,
+    int* NNarray,
+    int n,
+    int m,
+    int dim,
+    int nparms);
 
 extern "C"
 double* vecchia_Linv_gpu_batched(
@@ -95,20 +108,38 @@ NumericMatrix nearest_neighbors_sing_gpu(arma::mat locs, int m, int nq){
 }
 
 // [[Rcpp::export]]
-arma::mat vecchia_Linv_gpu_isotropic_exponential(
+arma::mat vecchia_Linv_gpu(
     arma::vec covparms,
+    StringVector covfun_name,
     arma::mat locs,
     arma::mat NNarray) {
     
+    short covfun_name_index = 0;
+    std::string covfun_name_string;
+    covfun_name_string = covfun_name[0];
+    if (covfun_name_string.compare("exponential_isotropic") == 0) {
+        covfun_name_index = 0;
+    } else if (covfun_name_string.compare("exponential_scaledim") == 0) {
+        covfun_name_index = 1;
+    } else if (covfun_name_string.compare("exponential_spacetime") == 0) {
+        covfun_name_index = 2;
+    } else if (covfun_name_string.compare("exponential_spheretime") == 0) {
+        covfun_name_index = 3;
+    }
+
     int m = NNarray.n_cols;
     int n = locs.n_rows;
     int nparms = covparms.n_elem;
     int dim = locs.n_cols;
 
-    double covparmsl[3] = { 0, 0, 0 };
-    covparmsl[0] = covparms[0];
-    covparmsl[1] = covparms[1];
-    covparmsl[2] = covparms[2];
+    // double covparmsl[3] = { 0, 0, 0 };
+    // covparmsl[0] = covparms[0];
+    // covparmsl[1] = covparms[1];
+    // covparmsl[2] = covparms[2];
+    double* covparmsl = (double*) malloc(sizeof(double) * nparms);
+    for (int i = 0; i < nparms; i++){
+        covparmsl[i] = covparms[i];
+    }
 
     // double* locsl = (double*)malloc(sizeof(double) * n * dim);
     locs = locs.t();
@@ -126,7 +157,7 @@ arma::mat vecchia_Linv_gpu_isotropic_exponential(
     //     }
     // }
 
-    double* Linvl = vecchia_Linv_gpu_outer(covparmsl, locsl, NNarrayl, n, m, dim);
+    double* Linvl = vecchia_Linv_gpu_outer(covparmsl, covfun_name_index, locsl, NNarrayl, n, m, dim, nparms);
 
     // NumericMatrix Linv( n , m );
     // arma::mat Linv = arma::mat(n, m);
@@ -137,6 +168,65 @@ arma::mat vecchia_Linv_gpu_isotropic_exponential(
     // }
     arma::mat Linv = arma::mat(&Linvl[0], m, n, false);
     return Linv.t();
+}
+
+// [[Rcpp::export]]
+arma::mat vecchia_Linv_gpu_single(
+    arma::vec covparms,
+    StringVector covfun_name,
+    arma::mat locs,
+    arma::mat NNarray) {
+    
+    short covfun_name_index = 0;
+    std::string covfun_name_string;
+    covfun_name_string = covfun_name[0];
+    if (covfun_name_string.compare("exponential_isotropic") == 0) {
+        covfun_name_index = 0;
+    } else if (covfun_name_string.compare("exponential_scaledim") == 0) {
+        covfun_name_index = 1;
+    } else if (covfun_name_string.compare("exponential_spacetime") == 0) {
+        covfun_name_index = 2;
+    } else if (covfun_name_string.compare("exponential_spheretime") == 0) {
+        covfun_name_index = 3;
+    }
+
+    int m = NNarray.n_cols;
+    int n = locs.n_rows;
+    int nparms = covparms.n_elem;
+    int dim = locs.n_cols;
+
+    float* covparmsl = (float*) malloc(sizeof(float) * nparms);
+    for (int i = 0; i < nparms; i++){
+        covparmsl[i] = covparms[i];
+    }
+
+    float* locsl = (float*)malloc(sizeof(float) * n * dim);
+    // locs = locs.t();
+    // double* locsl = locs.memptr();
+    int* NNarrayl = (int*)malloc(sizeof(int) * n * m);
+    // NNarray = NNarray.t();
+    // double* NNarrayl = NNarray.memptr();
+
+    for (int i = 0; i < n; i++){
+        for (int j = 0; j < m; j++){
+            if (j < dim) {
+                locsl[i * dim + j] = locs(i, j);
+            }
+            NNarrayl[i * m + j] = NNarray(i, j);
+        }
+    }
+
+    float* Linvl = vecchia_Linv_gpu_outer_single(covparmsl, covfun_name_index, locsl, NNarrayl, n, m, dim, nparms);
+
+    // NumericMatrix Linv( n , m );
+    arma::mat Linv = arma::mat(n, m);
+    for (int i = 0; i < n; i++){
+        for (int j = 0; j < m; j++){
+            Linv(i,j) = Linvl[i * m + j];
+        }
+    }
+    // arma::mat Linv = arma::mat(&Linvl[0], m, n, false);
+    return Linv;
 }
 
 // [[Rcpp::export]]
@@ -212,7 +302,7 @@ void call_compute_pieces_gpu(
 );
 
 extern "C"
-double* call_Linv_mult_gpu(double* Linv, double* z, double* NNarray, int n, int m);
+double* call_Linv_mult_gpu(double* Linv, double* z, int* NNarray, int n, int m);
 
 arma::mat exponential_isotropic2(arma::vec covparms, arma::mat locs ){
 
@@ -911,6 +1001,33 @@ List vecchia_profbeta_loglik_gpu(
         
 }
 
+// [[Rcpp::export]]
+List vecchia_meanzero_loglik_gpu( 
+    NumericVector covparms, 
+    StringVector covfun_name,
+    NumericVector y,
+    NumericMatrix X,
+    const NumericMatrix locs,
+    NumericMatrix NNarray ){
+    
+    NumericVector ll(1);
+    NumericVector grad( covparms.length() );
+    NumericVector betahat( X.ncol() );
+    NumericMatrix info( covparms.length(), covparms.length() );
+    NumericMatrix betainfo( X.ncol(), X.ncol() );
+
+    // this function calls arma_onepass_compute_pieces
+    // then synthesizes the result into loglik, beta, grad, info, betainfo
+    likelihood(covparms, covfun_name, locs, NNarray, y, X,
+        &ll, &betahat, &grad, &info, &betainfo, true, false 
+    );
+    
+    List ret = List::create( Named("loglik") = ll, Named("betahat") = betahat,
+        Named("betainfo") = betainfo );
+    return ret;
+        
+}
+
 extern "C"
 void call_compute_pieces_fisher_gpu(
     double* covparms,
@@ -1485,31 +1602,68 @@ List fisher_scoring_gpu(
 }
 
 // [[Rcpp::export]]
-NumericVector Linv_mult_gpu(NumericMatrix Linv, NumericVector z, IntegerMatrix NNarray) {
-    int n = z.length();
-    int m = NNarray.ncol();
+arma::vec Linv_mult_gpu(arma::mat Linv, arma::vec z, arma::mat NNarray) {
+    int n = NNarray.n_rows;
+    int m = NNarray.n_cols;
 
-    double* Linvl = (double*)malloc(sizeof(double) * n * m);
-    double* NNarrayl = (double*) calloc(n * m, sizeof(double));
-    double* zl = (double*)malloc(sizeof(double) * n);
+    // double* Linvl = (double*)malloc(sizeof(double) * n * m);
+    int* NNarrayl = (int*) malloc(n * m * sizeof(int));
+    // double* zl = (double*)malloc(sizeof(double) * n);
+
+    // NNarray = NNarray.t();
+    // double* NNarrayl = NNarray.memptr();
+    Linv = Linv.t();
+    double* Linvl = Linv.memptr();
+    double* zl = z.memptr();
     
     for (int i = 0; i < n; i++) {
-        zl[i] = z[i];
+        // zl[i] = z[i];
         for (int j = 0; j < m; j++) {
-            Linvl[i * m + j] = Linv(i, j);
+            // Linvl[i * m + j] = Linv(i, j);
             if (j <= i){
                 NNarrayl[i * m + j] = NNarray(i, j);
             }
+            // NNarrayl[i * m + j] = NNarray(i, j);
         }
     }
 
     double* x = call_Linv_mult_gpu(Linvl, zl, NNarrayl, n, m);
 
-    NumericVector ret(n);
+    // NumericVector ret(n);
 
-    for (int i = 0; i < n; i++) {
-        ret[i] = x[i];
-    }
-
+    // for (int i = 0; i < n; i++) {
+    //     ret[i] = x[i];
+    // }
+    arma::vec ret = arma::vec(&x[0], n, false);
     return ret;
 }
+
+// // [[Rcpp::export]]
+// NumericVector Linv_mult_gpu(NumericMatrix Linv, NumericVector z, IntegerMatrix NNarray) {
+//     int n = z.length();
+//     int m = NNarray.ncol();
+
+//     double* Linvl = (double*)malloc(sizeof(double) * n * m);
+//     double* NNarrayl = (double*) calloc(n * m, sizeof(double));
+//     double* zl = (double*)malloc(sizeof(double) * n);
+    
+//     for (int i = 0; i < n; i++) {
+//         zl[i] = z[i];
+//         for (int j = 0; j < m; j++) {
+//             Linvl[i * m + j] = Linv(i, j);
+//             if (j <= i){
+//                 NNarrayl[i * m + j] = NNarray(i, j);
+//             }
+//         }
+//     }
+
+//     double* x = call_Linv_mult_gpu(Linvl, zl, NNarrayl, n, m);
+
+//     NumericVector ret(n);
+
+//     for (int i = 0; i < n; i++) {
+//         ret[i] = x[i];
+//     }
+
+//     return ret;
+// }
