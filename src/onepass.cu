@@ -5,6 +5,8 @@
 #include <cuda_runtime.h>
 #include <algorithm>
 #include <string>
+
+#include "covmatrix_funs_14.cuh"
 //' GPU Error check function
 //`
 //' Kernels do not throw exceptions. They instead return exit codes. If the exit code is
@@ -184,234 +186,248 @@ double* vecchia_Linv(
     return Linv;
 }
 
-__global__ void call_vecchia_Linv_gpu(double* locs, double* NNarray,
-     double variance, double range, double nugget, double* covmat, double* locs_scaled, int n, int m, int dim, int start_ind) {
+__global__ void call_vecchia_Linv_gpu(double* locs, double* NNarray, double* covparms, short covfun_name, double* Linv,
+     int n, int m, int dim, int start_ind) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= n || i < start_ind) {
         return;
     }
 
-    if (m <= 51) {
-        double ls[51 * 2];
-        double cov[51 * 51];
+    if (m <= 31) {
+        int bsize = min(i+1, m);
+        double locsub[31 * 6];
+        double cov[31 * 31];
         
-        for (int j = 0; j < m; j++) {
+        
+        for (int j = bsize - 1; j >= 0; j--) {
             for (int k = 0; k < dim; k++) {
                 // locs_scaled[i * m * dim + (m - 1 - j) * dim + k] = ( locs[(static_cast<int>(NNarray[i * m + j]) - 1) * dim + k] ) / range;
-                ls[(m - 1 -j) * dim + k] = locs[(static_cast<int>(NNarray[i * m + j]) - 1) * dim + k] / range;
+                locsub[(bsize - 1 - j) * dim + k] = locs[(static_cast<int>(NNarray[i * m + j]) - 1) * dim + k];
             }
         }
         
-        for (int i1 = 0; i1 < m; i1++) {
-            for (int i2 = 0; i2 <= i1; i2++) {
-                // calculate distance
-                //double d = hypot(locs_scaled[i * m * dim + i1 * dim ]- locs_scaled[i * m * dim + i2 * dim], 
-                //locs_scaled[i * m * dim + i1 * dim + 1] - locs_scaled[i * m * dim + i2 * dim + 1]);
-                
-                //double d = hypot(ls[i1 * dim] - ls[i2 * dim],
-                    //ls[i1 * dim + 1] - ls[i2 * dim + 1]);
-                
-                double d = 0;
-                double d2 = 0;
-                for (int j = 0; j < dim; j++) {
-                    d2 = ls[i1 * dim + j] - ls[i2 * dim + j];
-                    d += d2 * d2;
-                }
-                d = sqrt(d);
-
-                // calculate covariance
-                if (i1 == i2) {
-                    // covmat[i * m * m + i2 * m + i1] = variance * (expf(-d) + nugget);
-                    cov[i2 * m + i1] = variance * (exp(-d) + nugget);
-                }
-                else {
-                    // covmat[i * m * m + i2 * m + i1] = variance * expf(-d);
-                    cov[i2 * m + i1] = variance * exp(-d);
-                    cov[i1 * m + i2] = cov[i2 * m + i1];
-                    // covmat[i * m * m + i1 * m + i2] = covmat[i * m * m + i2 * m + i1];
-                }
-            }
-        }
+        covariance_func(covfun_name, covparms, locsub, cov, dim, bsize);
         
-        int k, q, j;
+        int k, q;
         double temp, diff;
-        for (q = 0; q < m; q++) {
+        for (q = 0; q < bsize; q++) {
             diff = 0;
-            for (k = 0; k < m; k++) {
+            for (k = 0; k < bsize; k++) {
                 if (k < q) {
-                    temp = cov[k * m + q];
-                    // temp = covmat[i * m * m + k * m + q];
+                    temp = cov[k * bsize + q];
                     diff -= temp * temp;
                 }
                 else if (k == q) {
-                    cov[q * m + q] = sqrt(cov[q * m + q] + diff);
-                    //covmat[i * m * m + q * m + q] = sqrt(covmat[i * m * m + q * m + q] + diff);;
+                    cov[q * bsize + q] = sqrt(cov[q * bsize + q] + diff);
                     diff = 0;
                 }
                 else {
                     diff = 0;
                     for (int p = 0; p < q; p++) {
-                        //diff += covmat[i * m * m + p * m + q] * covmat[i * m * m + p * m + k];
-                        diff += cov[p * m + q] * cov[p * m + k];
+                        diff += cov[p * bsize + q] * cov[p * bsize + k];
                     }
-                    //covmat[i * m * m + q * m + k] = (covmat[i * m * m + q * m + k] - diff ) / covmat[i * m * m + q * m + q];
-                    cov[q * m + k] = (cov[q * m + k] - diff) / cov[q * m + q];
+                    cov[q * bsize + k] = (cov[q * bsize + k] - diff) / cov[q * bsize + q];
                 }
             }
 
         }
         int b = 1;
-        for (int q = m - 1; q >= 0; q--) {
+        for (int q = bsize - 1; q >= 0; q--) {
             double sum = 0.0;
-            for (int j = q + 1; j < m; j++) {
-                //sum += covmat[i * m * m + q * m + j] * NNarray[i * m + m - 1 - j];
-                sum += cov[q * m + j] * NNarray[i * m + m - 1 - j];
+            for (int j = q + 1; j < bsize; j++) {
+                sum += cov[q * bsize + j] * Linv[i * m + bsize - 1 - j];
             }
-            //NNarray[i * m + m - 1 - q] = (b - sum) / covmat[i * m * m + q * m + q];
-            NNarray[i * m + m - 1 - q] = (b - sum) / cov[q * m + q];
+            Linv[i * m + bsize - 1 - q] = (b - sum) / cov[q * bsize + q];
             b = 0;
         }
-    } else if (m <= 51) {
-        double ls[51 * 2];
-        double cov[51 * 51];
-        
-        for (int j = 0; j < m; j++) {
-            for (int k = 0; k < dim; k++) {
-                // locs_scaled[i * m * dim + (m - 1 - j) * dim + k] = ( locs[(static_cast<int>(NNarray[i * m + j]) - 1) * dim + k] ) / range;
-                ls[(m - 1 -j) * dim + k] = locs[(static_cast<int>(NNarray[i * m + j]) - 1) * dim + k] / range;
-            }
-        }
-        
-        for (int i1 = 0; i1 < m; i1++) {
-            for (int i2 = 0; i2 <= i1; i2++) {
-                // calculate distance
-                //double d = hypot(locs_scaled[i * m * dim + i1 * dim ]- locs_scaled[i * m * dim + i2 * dim], 
-                //locs_scaled[i * m * dim + i1 * dim + 1] - locs_scaled[i * m * dim + i2 * dim + 1]);
-                
-                //double d = hypot(ls[i1 * dim] - ls[i2 * dim],
-                    //ls[i1 * dim + 1] - ls[i2 * dim + 1]);
-                
-                double d = 0;
-                double d2 = 0;
-                for (int j = 0; j < dim; j++) {
-                    d2 = ls[i1 * dim + j] - ls[i2 * dim + j];
-                    d += d2 * d2;
-                }
-                d = sqrt(d);
+    } 
+    // float a = 3.5;
+    // float b = 2.5;
+    // if (i == 15) {
+    //     printf("Result on (%f, %f): %f\n", a, b, __fdiv_rd(a, b));
+    //     printf("Result on (%f, %f): %f\n", a, b, __fdividef(a, b));
+    // }
+}
 
-                // calculate covariance
-                if (i1 == i2) {
-                    // covmat[i * m * m + i2 * m + i1] = variance * (expf(-d) + nugget);
-                    cov[i2 * m + i1] = variance * (exp(-d) + nugget);
-                }
-                else {
-                    // covmat[i * m * m + i2 * m + i1] = variance * expf(-d);
-                    cov[i2 * m + i1] = variance * exp(-d);
-                    cov[i1 * m + i2] = cov[i2 * m + i1];
-                    // covmat[i * m * m + i1 * m + i2] = covmat[i * m * m + i2 * m + i1];
-                }
-            }
-        }
-        
-        int k, q, j;
-        double temp, diff;
-        for (q = 0; q < m; q++) {
-            diff = 0;
-            for (k = 0; k < m; k++) {
-                if (k < q) {
-                    temp = cov[k * m + q];
-                    // temp = covmat[i * m * m + k * m + q];
-                    diff -= temp * temp;
-                }
-                else if (k == q) {
-                    cov[q * m + q] = sqrt(cov[q * m + q] + diff);
-                    //covmat[i * m * m + q * m + q] = sqrt(covmat[i * m * m + q * m + q] + diff);;
-                    diff = 0;
-                }
-                else {
-                    diff = 0;
-                    for (int p = 0; p < q; p++) {
-                        //diff += covmat[i * m * m + p * m + q] * covmat[i * m * m + p * m + k];
-                        diff += cov[p * m + q] * cov[p * m + k];
-                    }
-                    //covmat[i * m * m + q * m + k] = (covmat[i * m * m + q * m + k] - diff ) / covmat[i * m * m + q * m + q];
-                    cov[q * m + k] = (cov[q * m + k] - diff) / cov[q * m + q];
-                }
-            }
-
-        }
-        int b = 1;
-        for (int q = m - 1; q >= 0; q--) {
-            double sum = 0.0;
-            for (int j = q + 1; j < m; j++) {
-                //sum += covmat[i * m * m + q * m + j] * NNarray[i * m + m - 1 - j];
-                sum += cov[q * m + j] * NNarray[i * m + m - 1 - j];
-            }
-            //NNarray[i * m + m - 1 - q] = (b - sum) / covmat[i * m * m + q * m + q];
-            NNarray[i * m + m - 1 - q] = (b - sum) / cov[q * m + q];
-            b = 0;
-        }
-
+__global__ void call_vecchia_Linv_gpu_single(float* locs, int* NNarray, float* covparms, short covfun_name, float* Linv,
+     int n, int m, int dim, int start_ind) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n || i < start_ind) {
+        return;
     }
-    
 
+    if (m <= 31) {
+        int bsize = min(i+1, m);
+        float locsub[31 * 6];
+        float cov[31 * 31];
+        
+        
+        for (int j = bsize - 1; j >= 0; j--) {
+            for (int k = 0; k < dim; k++) {
+                locsub[(bsize - 1 - j) * dim + k] = locs[(NNarray[i * m + j] - 1) * dim + k];
+            }
+        }
+        
+        float temp = 0;
+        for (int i1 = 0; i1 < bsize; i1++) {
+            for (int i2 = 0; i2 <= i1; i2++) {
+                float d = 0.0;
+                for (int j = 0; j < dim; j++) {
+                    temp = __fdiv_rn(__fsub_rn(locsub[i1 * dim + j], locsub[i2 * dim + j]), covparms[1]);
+                    // temp = (locsub[i1 * dim + j] - locsub[i2 * dim + j]) / covparms[1];
+                    // d += __fmul_rn(temp, temp);
+                    d += temp * temp;
+                }
+                d = sqrt(d);
+                // calculate covariance
+                if (i1 == i2) {
+                    cov[i2 * bsize + i1] = __fmul_rn(covparms[0], __fadd_rn(covparms[2], 1.0f));
+                    // cov[i2 * m + i1] = covparms[0] * (1 + covparms[2]);
+                }
+                else {
+                    temp = __fmul_rn(covparms[0], __expf(-d));
+                    // temp = covparms[0] * exp(-d);;
+                    cov[i2 * bsize + i1] = temp;
+                    cov[i1 * bsize + i2] = temp;
+                }
+            }
+        }
+        
+        int k, q;
+        float diff;
+        for (q = 0; q < bsize; q++) {
+            diff = 0;
+            for (k = 0; k < bsize; k++) {
+                if (k < q) {
+                    temp = cov[k * bsize + q];
+                    // diff -= __fmul_rn(temp, temp);
+                    diff -= temp * temp;
+                }
+                else if (k == q) {
+                    cov[q * bsize + q] = __fsqrt_rn(__fadd_rn(cov[q * bsize + q], diff));
+                    // cov[q * bsize + q] = sqrt(cov[q * bsize + q] + diff);
+                    diff = 0;
+                }
+                else {
+                    diff = 0;
+                    for (int p = 0; p < q; p++) {
+                        diff += __fmul_rn(cov[p * bsize + q], cov[p * bsize + k]);
+                        // diff += cov[p * bsize + q] * cov[p * bsize + k];
+                    }
+                    cov[q * bsize + k] = __fdiv_rn(__fsub_rn(cov[q * bsize + k], diff) , cov[q * bsize + q]);
+                    // cov[q * bsize + k] = (cov[q * bsize + k] - diff) / cov[q * bsize + q];
+                }
+            }
+
+        }
+        int b = 1;
+        for (int q = bsize - 1; q >= 0; q--) {
+            float sum = 0.0;
+            for (int j = q + 1; j < bsize; j++) {
+                sum += __fmul_rn(cov[q * bsize + j] , Linv[i * m + bsize - 1 - j]);
+                // sum += cov[q * bsize + j] * Linv[i * m + bsize - 1 - j];
+            }
+            Linv[i * m + bsize - 1 - q] = __fdiv_rn(__fsub_rn(b, sum) , cov[q * bsize + q]);
+            // Linv[i * m + bsize - 1 - q] = (b - sum) / cov[q * bsize + q];
+            b = 0;
+        }
+    } 
 }
 
 // Calculates the sparse inverse Cholesky matrix by calling a kernel function
 extern "C"
 double* vecchia_Linv_gpu_outer(
     double* covparms,
+    short covfun_name,
     double* locs,
     double* NNarray,
     int n,
     int m,
-    int dim) {
+    int dim,
+    int nparms) {
 
-    int start_ind = 1;
+    // int start_ind = 1;
 
-    double* Linv = (double*)calloc(m * m, sizeof(double));
-    vecchia_Linv(covparms, locs, NNarray, Linv, n, m, dim, m);
+    // double* Linv = (double*)calloc(m * m, sizeof(double));
+    double* Linvn = (double*)calloc(n * m, sizeof(double));
+    // vecchia_Linv(covparms, locs, NNarray, Linv, n, m, dim, m);
     // Allocate device memory
-    double * d_locs, * d_covmat ,*d_locs_scaled;
-    double *d_NNarray;
-    //auto begin = std::chrono::steady_clock::now();
+    double *d_locs, * d_NNarray ,*d_Linv, *d_covparms;
+
     gpuErrchk(cudaMalloc((void**)&d_locs, sizeof(double) * n * dim));
     gpuErrchk(cudaMalloc((void**)&d_NNarray, sizeof(double) * n * m));
-    /*gpuErrchk(cudaMalloc((void**)&d_covmat, sizeof(double) * n * m * m));
-    gpuErrchk(cudaMalloc((void**)&d_locs_scaled, sizeof(double) * n * m * dim))*/;
+    gpuErrchk(cudaMalloc((void**)&d_Linv, sizeof(double) * n * m));
+    gpuErrchk(cudaMalloc((void**)&d_covparms, sizeof(double) * nparms));
 
     gpuErrchk(cudaMemcpy(d_locs, locs, sizeof(double) * n * dim, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_NNarray, NNarray, sizeof(double) * n * m, cudaMemcpyHostToDevice));
-
-    //std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    //std::cout << "Memcpy Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[mus]" << std::endl;
+    gpuErrchk(cudaMemcpy(d_covparms, covparms, sizeof(double) * nparms, cudaMemcpyHostToDevice));
 
 
-    int grid_size = 16;
+    int grid_size = 64;
     int block_size = ((n + grid_size) / grid_size);
-    call_vecchia_Linv_gpu <<<block_size, grid_size >>> (d_locs, d_NNarray, covparms[0], covparms[1], covparms[2], d_covmat, d_locs_scaled, n, m, dim, m);
+    call_vecchia_Linv_gpu <<<block_size, grid_size >>> (d_locs, d_NNarray, d_covparms, covfun_name, d_Linv, n, m, dim, 0);
     //call_vecchia_Linv_gpu_double << <NUM_BLOCKS, dim3(m,m) >> > (d_locs, d_NNarray, covparms[0], covparms[1], covparms[2], d_covmat, d_locs_scaled, n, m, dim, m);
     //call_vecchia_Linv_gpu_double_com << <NUM_BLOCKS, dim3(m,m) >> > (d_locs, d_NNarray, covparms[0], covparms[1], covparms[2], d_covmat, d_locs_scaled, n, m, dim, m);
     //call_vecchia_Linv_gpu_double_conj << <NUM_BLOCKS, dim3(m,m) >> > (d_locs, d_NNarray, covparms[0], covparms[1], covparms[2], d_covmat, d_locs_scaled, n, m, dim, m);
     //call_vecchia_Linv_gpu_single_precision << <block_size, grid_size >> > (d_locs, d_NNarray, covparms[0], covparms[1], covparms[2], d_covmat, d_locs_scaled, n, m, dim, m);
 
-    cudaDeviceSynchronize();
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
 
 
-    //begin = std::chrono::steady_clock::now();
-    gpuErrchk(cudaMemcpy(NNarray, d_NNarray, sizeof(double) * n * m, cudaMemcpyDeviceToHost));
-    //end = std::chrono::steady_clock::now();
-    //std::cout << "Memcpy final answer Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[mus]" << std::endl;
-
-    for (int r = 0; r < m; r++) {
-        for (int s = 0; s < m; s++) {
-            NNarray[r * m + s] = Linv[r * m + s];
-        }
-    }
-
-    return NNarray;
+    gpuErrchk(cudaMemcpy(Linvn, d_Linv, sizeof(double) * n * m, cudaMemcpyDeviceToHost));
+    
+    // for (int r = 0; r < m; r++) {
+    //     for (int s = 0; s < m; s++) {
+    //         Linvn[r * m + s] = Linv[r * m + s];
+    //     }
+    // }
+    // cudaDeviceReset();
 
 
+    return Linvn;
+}
+
+// Calculates the sparse inverse Cholesky matrix by calling a kernel function
+extern "C"
+float* vecchia_Linv_gpu_outer_single(
+    float* covparms,
+    short covfun_name,
+    float* locs,
+    int* NNarray,
+    int n,
+    int m,
+    int dim,
+    int nparms) {
+
+    // int start_ind = 1;
+
+    float* Linvn = (float*)calloc(n * m, sizeof(float));
+    // vecchia_Linv(covparms, locs, NNarray, Linv, n, m, dim, m);
+    // Allocate device memory
+    float *d_locs ,*d_Linv, *d_covparms;
+    int* d_NNarray;
+
+    gpuErrchk(cudaMalloc((void**)&d_locs, sizeof(float) * n * dim));
+    gpuErrchk(cudaMalloc((void**)&d_NNarray, sizeof(int) * n * m));
+    gpuErrchk(cudaMalloc((void**)&d_Linv, sizeof(float) * n * m));
+    gpuErrchk(cudaMalloc((void**)&d_covparms, sizeof(float) * nparms));
+
+    gpuErrchk(cudaMemcpy(d_locs, locs, sizeof(float) * n * dim, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(d_NNarray, NNarray, sizeof(int) * n * m, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(d_covparms, covparms, sizeof(float) * nparms, cudaMemcpyHostToDevice));
+
+    int grid_size = 64;
+    int block_size = ((n + grid_size) / grid_size);
+    call_vecchia_Linv_gpu_single <<<block_size, grid_size >>> (d_locs, d_NNarray, d_covparms, covfun_name, d_Linv, n, m, dim, 0);
+
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
+
+    gpuErrchk(cudaMemcpy(Linvn, d_Linv, sizeof(float) * n * m, cudaMemcpyDeviceToHost));
+
+    return Linvn;
 }
 
 // Substitutes locations for NNarray indicies
@@ -461,7 +477,7 @@ __global__ void cholesky_and_solve_batched_kernel(double* NNarray, double* covma
     if (i < m || i > n) {
         return;
     }
-    int k, q, j;
+    int k, q;
     double temp, diff;
     for (q = 0; q < m; q++) {
         diff = 0;
@@ -700,7 +716,7 @@ void compute_pieces_cpu(
         double diff;
         
         
-        int r, j, k, l;
+        int r, j, k;
         for (r = 0; r < bsize; r++) {
             diff = 0;
             for (k = 0; k < r; k++) {
@@ -1042,7 +1058,7 @@ void compute_pieces_cpu(
 __global__ void compute_pieces(double* y, double* X, double* NNarray, double* locs, /*double* locsub,*/
     /*double* covmat,*/ double* logdet, double* ySy, double* XSX, double* ySX,
     double* dXSX, double* dySX, double* dySy, double* dlogdet, double* ainfo,
-    double variance, double range, double nugget,
+    double* covparms, short covfun_name,
     int n, int p, int m, int dim, int nparms,
     bool profbeta, bool grad_info//,
     /*double* dcovmat,
@@ -1055,91 +1071,98 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
     }
     if (m <= 31) {
         double ysub[31];
-        double locsub[31 * 2];
+        double locsub[31 * 6];
         double X0[31 * 10];
+
+        // substitute locations
         for (int j = m - 1; j >= 0; j--) {
-            // ysub[i * m + m - 1 - j] = y[static_cast<int>(NNarray[i * m + j]) - 1];
             ysub[m - 1 - j] = y[static_cast<int>(NNarray[i * m + j]) - 1];
             for (int k = 0; k < dim; k++) {
-                // locsub[i * m * dim + (m - 1 - j) * dim + k] = locs[(static_cast<int>(NNarray[i * m + j]) - 1) * dim + k] / range;
-                locsub[(m - 1 - j) * dim + k] = locs[(static_cast<int>(NNarray[i * m + j]) - 1) * dim + k] / range;
+                locsub[(m - 1 - j) * dim + k] = locs[(static_cast<int>(NNarray[i * m + j]) - 1) * dim + k];
             }
             if (profbeta) {
                 for (int k = 0; k < p; k++) {
-                    // X0[i * m * p + (m - 1 - j) * p + k] = X[(static_cast<int>(NNarray[i * m + j]) - 1) * p + k];
                     X0[(m - 1 - j) * p + k] = X[(static_cast<int>(NNarray[i * m + j]) - 1) * p + k];
                 }
             }
         }
     
         double covmat[31 * 31];
-       
         double temp;
-        for (int i1 = 0; i1 < m; i1++) {
-            for (int i2 = 0; i2 <= i1; i2++) {
-                double d = 0.0;
-                for (int j = 0; j < dim; j++) {
-                    // temp = locsub[i * m * dim + i1 * dim + j] - locsub[i * m * dim + i2 * dim + j];
-                    temp = locsub[i1 * dim + j] - locsub[i2 * dim + j];
-                    d += temp * temp;
-                }
-                d = sqrt(d);
-                // calculate covariance
-                if (i1 == i2) {
-                    // covmat[i * m * m + i2 * m + i1] = variance * (exp(-d) + nugget);
-                    covmat[i2 * m + i1] = variance * (exp(-d) + nugget);
-                }
-                else {
-                    // covmat[i * m * m + i2 * m + i1] = variance * exp(-d);
-                    // covmat[i * m * m + i1 * m + i2] = covmat[i * m * m + i2 * m + i1];
 
-                    covmat[i2 * m + i1] = variance * exp(-d);
-                    covmat[i1 * m + i2] = covmat[i2 * m + i1];
-                }
-            }
+        
+        covariance_func(covfun_name, covparms, locsub, covmat, dim, m);
+
+       if (i == 50) {
+            // // printf("%f \n", logdet[i]);
+            // // printf("%f \n", ySy[i]);
+            // for (int j = 0; j < nparms; j++) {
+            //     printf("%f ", covparms[j]);
+            // }
+            // printf("\n");
+            // for (int j = 0; j < m; j++) {
+            //     for (int k = 0; k < m; k++) {
+            //         printf("%f ", covmat[j * m + k]);
+            //     }
+            //     printf("\n");
+            // }
+            // for (int j = 0; j < m; j++) {
+            //     for (int k = 0; k < p; k++) {
+            //         printf("%f ", X0[j * p + k]);
+            //     }
+            //     printf("\n");
+            // }
+            // printf("\n");
+            // for (int j = 0; j < m; j++) {
+            //     for (int k = 0; k < p; k++) {
+            //         printf("%f ", LiX0[j * p + k]);
+            //     }
+            //     printf("\n");
+            // }
+
+            // for (int j = 0; j < p; j++) {
+            //     for (int k = 0; k < p; k++) {
+            //         printf("%f ", XSX[i * p * p + j * p + k]);
+            //     }
+            //     printf("\n");
+            // }
+            // for (int j = 0; j < m; j++) {
+            //     printf("%f ", Liy0[j]);
+            // }
+            // printf("\n\n");
         }
         
-        double dcovmat[31 * 31 * 3];
+        
+        double dcovmat[31 * 31 * 6];
         if (grad_info) {
             // calculate derivatives
             //arma::cube dcovmat = arma::cube(n, n, covparms.n_elem, fill::zeros);
             //dcovmat = (double*)malloc(sizeof(double) * m * m * nparms);
-            for (int i1 = 0; i1 < m; i1++) {
-                for (int i2 = 0; i2 <= i1; i2++) {
-                    dcovmat[i1 * m * nparms + i2 * nparms + 0] = 0;
-                    dcovmat[i1 * m * nparms + i2 * nparms + 1] = 0;
-                    double d = 0.0;
-                    double a = 0;
-                    for (int j = 0; j < dim; j++) {
-                        // a = locsub[i * m * dim + i1 * dim + j] - locsub[i * m * dim + i2 * dim + j];
-                        a = locsub[i1 * dim + j] - locsub[i2 * dim + j];
-                        d += a * a;
-                    }
-                    d = sqrt(d);
-                    temp = exp(-d);
-
-                    // dcovmat[i * m * m * nparms + i1 * m * nparms + i2 * nparms + 0] += temp;
-                    // dcovmat[i * m * m * nparms + i1 * m * nparms + i2 * nparms + 1] += variance * temp * d / range;
-
-                    dcovmat[i1 * m * nparms + i2 * nparms + 0] += temp;
-                    dcovmat[i1 * m * nparms + i2 * nparms + 1] += variance * temp * d / range;
-                    if (i1 == i2) { // update diagonal entry
-                        // dcovmat[i * m * m * nparms + i1 * m * nparms + i2 * nparms + 0] += nugget;
-                        // dcovmat[i * m * m * nparms + i1 * m * nparms + i2 * nparms + 2] = variance;
-
-                        dcovmat[i1 * m * nparms + i2 * nparms + 0] += nugget;
-                        dcovmat[i1 * m * nparms + i2 * nparms + 2] = variance;
-                    }
-                    else { // fill in opposite entry
-                        for (int j = 0; j < nparms; j++) {
-                            // dcovmat[i * m * m * nparms + i2 * m * nparms + i1 * nparms + j] = dcovmat[i * m * m * nparms + i1 * m * nparms + i2 * nparms + j];
-                            dcovmat[i2 * m * nparms + i1 * nparms + j] = dcovmat[i1 * m * nparms + i2 * nparms + j];
-                        }
-                    }
-                }
-            }
-            
+            d_covariance_func(covfun_name, covparms, locsub, dcovmat, dim, m, nparms);
         }
+
+        // if (i == 100) {
+        //     // printf("name: %i \n", covfun_name);
+            
+        //     for (int j = 0; j < nparms; j++) {
+        //         printf("%f ", covparms[j]);
+        //     }
+        //     printf("\n\n");
+
+        //     for (int j = 0; j < m; j++) {
+        //         for (int k = 0; k < dim; k++) {
+        //             printf("%f ", locsub[j * dim + k]);
+        //         }
+        //         printf("\n");
+        //     }
+        //     printf("\n");
+        //     for (int j = 0; j < m; j++) {
+        //         for (int k = 0; k < m; k++) {
+        //             printf("%f ", covmat[j * m + k]);
+        //         }
+        //         printf("\n");
+        //     }
+        // }
        
         /*arma::mat cholmat = eye(size(covmat));
         chol(cholmat, covmat, "lower");*/
@@ -1149,8 +1172,8 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
         double temp2;
         double diff;
     
-        int r, j, k, l;
-        int retval = 1;
+        int r, j, k;
+        // int retval = 1;
         for (r = 0; r < m + 0; r++) {
             diff = 0;
             for (k = 0; k < r; k++) {
@@ -1200,7 +1223,16 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
         
         //bool cond = bsize > 1;
         double LiX0[31 * 10];
+        for (int j = 0; j < 31 * 10; j++) {
+            LiX0[j] = 0;
+        }
         // do solves with X and y
+        for (int j = 0; j < m; j++) {
+            for (int k = j + 1; k < m; k++) {
+                // covmat[i * m * m + j * m + k] = 0.0;
+                covmat[j * m + k] = 0.0;
+            }
+        }
         if (profbeta) {
             // LiX0 = forward_solve_mat(cholmat, X0, m, p);
             for (int k = 0; k < p; k++) {
@@ -1223,12 +1255,9 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
             
 
         }
-        for (int j = 0; j < m; j++) {
-            for (int k = j + 1; k < m; k++) {
-                // covmat[i * m * m + j * m + k] = 0.0;
-                covmat[j * m + k] = 0.0;
-            }
-        }
+
+        
+        
 
         //arma::vec Liy0 = solve( trimatl(cholmat), ysub );
         //double* Liy0 = forward_solve(cholmat, ysub, m);
@@ -1259,7 +1288,9 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
         // temp = Liy0[i * m + m - 1];
         temp = Liy0[m - 1];
         ySy[i] = temp * temp;
-
+        // if (i == 100) {
+        //     printf("kern: %f\n", temp * temp);
+        // }
         
         if (profbeta) {
             /*l_XSX += LiX0.rows(i2).t() * LiX0.rows(i2);
@@ -1274,16 +1305,17 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
                     // XSX[i * p * p + i2 * p + i1] = XSX[i * p * p + i1 * p + i2];
 
                     XSX[i * p * p + i1 * p + i2] = temp * LiX0[(m - 1) * p + i2];
-                    XSX[i * p * p + i2 * p + i1] = XSX[i * p * p + i1 * p + i2];
+                    XSX[i * p * p + i2 * p + i1] = XSX[i * p * p + i1 * p + i2]; 
                 }
                 // ySX[i * p + i1] = temp2 * LiX0[i * m * p + (m - 1) * p + i1];
                 ySX[i * p + i1] = temp2 * LiX0[(m - 1) * p + i1];
             }
             
         }
+        
         double LidSLi3[31];
         double c[31];
-		double LidSLi2[31 * 3];
+		double LidSLi2[31 * 8];
         double v1[10];
         if (grad_info) {
             // gradient objects
@@ -1428,305 +1460,399 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
             }
            
         }
-    } else if (m <= 51) {
-        double ysub[51];
-        double locsub[51 * 2];
-        double X0[51 * 10];
-        for (int j = m - 1; j >= 0; j--) {
-            // ysub[i * m + m - 1 - j] = y[static_cast<int>(NNarray[i * m + j]) - 1];
-            ysub[m - 1 - j] = y[static_cast<int>(NNarray[i * m + j]) - 1];
-            for (int k = 0; k < dim; k++) {
-                // locsub[i * m * dim + (m - 1 - j) * dim + k] = locs[(static_cast<int>(NNarray[i * m + j]) - 1) * dim + k] / range;
-                locsub[(m - 1 - j) * dim + k] = locs[(static_cast<int>(NNarray[i * m + j]) - 1) * dim + k] / range;
-            }
-            if (profbeta) {
-                for (int k = 0; k < p; k++) {
-                    // X0[i * m * p + (m - 1 - j) * p + k] = X[(static_cast<int>(NNarray[i * m + j]) - 1) * p + k];
-                    X0[(m - 1 - j) * p + k] = X[(static_cast<int>(NNarray[i * m + j]) - 1) * p + k];
-                }
-            }
-        }
-        
-        double covmat[51 * 51];
-       
-        double temp;
-        for (int i1 = 0; i1 < m; i1++) {
-            for (int i2 = 0; i2 <= i1; i2++) {
-                double d = 0.0;
-                for (int j = 0; j < dim; j++) {
-                    // temp = locsub[i * m * dim + i1 * dim + j] - locsub[i * m * dim + i2 * dim + j];
-                    temp = locsub[i1 * dim + j] - locsub[i2 * dim + j];
-                    d += temp * temp;
-                }
-                d = sqrt(d);
-                // calculate covariance
-                if (i1 == i2) {
-                    // covmat[i * m * m + i2 * m + i1] = variance * (exp(-d) + nugget);
-                    covmat[i2 * m + i1] = variance * (exp(-d) + nugget);
-                }
-                else {
-                    // covmat[i * m * m + i2 * m + i1] = variance * exp(-d);
-                    // covmat[i * m * m + i1 * m + i2] = covmat[i * m * m + i2 * m + i1];
-
-                    covmat[i2 * m + i1] = variance * exp(-d);
-                    covmat[i1 * m + i2] = covmat[i2 * m + i1];
-                }
-            }
-        }
-        
-
-        double dcovmat[51 * 51 * 3];
-        if (grad_info) {
-            // calculate derivatives
-            //arma::cube dcovmat = arma::cube(n, n, covparms.n_elem, fill::zeros);
-            //dcovmat = (double*)malloc(sizeof(double) * m * m * nparms);
-            for (int i1 = 0; i1 < m; i1++) {
-                for (int i2 = 0; i2 <= i1; i2++) {
-                    double d = 0.0;
-                    double a = 0;
-                    for (int j = 0; j < dim; j++) {
-                        // a = locsub[i * m * dim + i1 * dim + j] - locsub[i * m * dim + i2 * dim + j];
-                        a = locsub[i1 * dim + j] - locsub[i2 * dim + j];
-                        d += a * a;
-                    }
-                    d = sqrt(d);
-                    temp = exp(-d);
-
-                    // dcovmat[i * m * m * nparms + i1 * m * nparms + i2 * nparms + 0] += temp;
-                    // dcovmat[i * m * m * nparms + i1 * m * nparms + i2 * nparms + 1] += variance * temp * d / range;
-
-                    dcovmat[i1 * m * nparms + i2 * nparms + 0] += temp;
-                    dcovmat[i1 * m * nparms + i2 * nparms + 1] += variance * temp * d / range;
-                    if (i1 == i2) { // update diagonal entry
-                        // dcovmat[i * m * m * nparms + i1 * m * nparms + i2 * nparms + 0] += nugget;
-                        // dcovmat[i * m * m * nparms + i1 * m * nparms + i2 * nparms + 2] = variance;
-
-                        dcovmat[i1 * m * nparms + i2 * nparms + 0] += nugget;
-                        dcovmat[i1 * m * nparms + i2 * nparms + 2] = variance;
-                    }
-                    else { // fill in opposite entry
-                        for (int j = 0; j < nparms; j++) {
-                            // dcovmat[i * m * m * nparms + i2 * m * nparms + i1 * nparms + j] = dcovmat[i * m * m * nparms + i1 * m * nparms + i2 * nparms + j];
-                            dcovmat[i2 * m * nparms + i1 * nparms + j] = dcovmat[i1 * m * nparms + i2 * nparms + j];
-                        }
-                    }
-                }
-            }
-
-        }
-       
-        /*arma::mat cholmat = eye(size(covmat));
-        chol(cholmat, covmat, "lower");*/
-
-        // Cholesky decomposition
-        //int k, q, j;
-        double temp2;
-        double diff;
-    
-        int r, j, k, l;
-        int retval = 1;
-        for (r = 0; r < m + 0; r++) {
-            diff = 0;
-            for (k = 0; k < r; k++) {
-                // temp = covmat[i * m * m + r * m + k];
-                temp = covmat[r * m + k];
-                diff += temp * temp;
-            }
-            // covmat[i * m * m + r * m + r] = sqrt(covmat[i * m * m + r * m + r] - diff);
-            covmat[r * m + r] = sqrt(covmat[r * m + r] - diff);
-
-
-            for (j = r + 1; j < m + 0; j++) {
-                diff = 0;
-                for (k = 0; k < r; k++) {
-                    // diff += covmat[i * m * m + r * m + k] * covmat[i * m * m + j * m + k];
-                    diff += covmat[r * m + k] * covmat[j * m + k];
-                }
-                // covmat[i * m * m + j * m + r] = (covmat[i * m * m + j * m + r] - diff) / covmat[i * m * m + r * m + r];
-                covmat[j * m + r] = (covmat[j * m + r] - diff) / covmat[r * m + r];
-            }
-        }
-        double choli2[51];
-        if (grad_info) {
-            //choli2 = backward_solve(cholmat, onevec, m);
-            // choli2[i * m + m - 1] = 1 / covmat[i * m * m + (m - 1) * m + m - 1];
-            choli2[m - 1] = 1 / covmat[(m - 1) * m + m - 1];
-
-            for (int k = m - 2; k >= 0; k--) {
-                double dd = 0.0;
-                for (int j = m - 1; j > k; j--) {
-                    // dd += covmat[i * m * m + j * m + k] * choli2[i * m + j];
-                    dd += covmat[j * m + k] * choli2[j];
-                }
-                // choli2[i * m + k] = (-dd) / covmat[i * m * m + k * m + k];
-                choli2[k] = (-dd) / covmat[k * m + k];
-            }
-        }
-        
-        //bool cond = bsize > 1;
-        double LiX0[51 * 10];
-        // do solves with X and y
-        if (profbeta) {
-            // LiX0 = forward_solve_mat(cholmat, X0, m, p);
-            for (int k = 0; k < p; k++) {
-                // LiX0[i * m * p + 0 * p + k] = X0[i * m * p + 0 * p + k] / covmat[i * m * m + 0 * m + 0];
-                LiX0[0 * p + k] = X0[0 * p + k] / covmat[0 * m + 0];
-
-            }
-
-            for (int h = 1; h < m; h++) {
-                for (int k = 0; k < p; k++) {
-                    double dd = 0.0;
-                    for (int j = 0; j < h; j++) {
-                        // dd += covmat[i * m * m + h * m + j] * LiX0[i * m * p + j * p + k];
-                        dd += covmat[h * m + j] * LiX0[j * p + k];
-                    }
-                    // LiX0[i * m * p + h * p + k] = (X0[i * m * p + h * p + k] - dd) / covmat[i * m * m + h * m + h];
-                    LiX0[h * p + k] = (X0[h * p + k] - dd) / covmat[h * m + h];
-                }
-            }
-            
-
-        }
-        for (int j = 0; j < m; j++) {
-            for (int k = j + 1; k < m; k++) {
-                // covmat[i * m * m + j * m + k] = 0.0;
-                covmat[j * m + k] = 0.0;
-            }
-        }
-        double Liy0[51];
-        // Liy0[i * m + 0] = ysub[i * m + 0] / covmat[i * m * m + 0 * m + 0];
-        Liy0[0] = ysub[0] / covmat[0 * m + 0];
-
-        for (int k = 1; k < m; k++) {
-            double dd = 0.0;
-            for (int j = 0; j < k; j++) {
-                // dd += covmat[i * m * m + k * m + j] * Liy0[i * m + j];
-                dd += covmat[k * m + j] * Liy0[j];
-            }
-            // Liy0[i * m + k] = (ysub[i * m + k] - dd) / covmat[i * m * m + k * m + k];
-            Liy0[k] = (ysub[k] - dd) / covmat[k * m + k];
-
-        }
-       
-
-        // loglik objects
-        // logdet[i] = 2.0 * log(covmat[i * m * m + (m - 1) * m + m - 1]);
-        logdet[i] = 2.0 * log(covmat[(m - 1) * m + m - 1]);
-
-        // temp = Liy0[i * m + m - 1];
-        temp = Liy0[m - 1];
-        ySy[i] = temp * temp;
-
-        
-        if (profbeta) {
-            temp2 = Liy0[m - 1];
-            for (int i1 = 0; i1 < p; i1++) {
-                temp = LiX0[(m - 1) * p + i1];
-                for (int i2 = 0; i2 <= i1; i2++) {
-                    XSX[i * p * p + i1 * p + i2] = temp * LiX0[(m - 1) * p + i2];
-                    XSX[i * p * p + i2 * p + i1] = XSX[i * p * p + i1 * p + i2];
-                }
-                ySX[i * p + i1] = temp2 * LiX0[(m - 1) * p + i1];
-            }
-            
-        }
-        double LidSLi3[51];
-		double LidSLi2[51 * 3];
-        double c[51];
-        double v1[10];
-        if (grad_info) {
-            for (int j = 0; j < nparms; j++) {
-                for (int h = 0; h < m; h++) {
-                    c[h] = 0;
-                    temp = 0;
-                    for (int k = 0; k < m; k++) {
-                        // temp += dcovmat[i * m * m * nparms + h * m * nparms + k * nparms + j] * choli2[i * m + k];
-                        temp += dcovmat[h * m * nparms + k * nparms + j] * choli2[k];
-                    }
-                    // c[i * m + h] = temp;
-                    c[h] = temp;
-                }
-
-                //LidSLi3 = forward_solve(cholmat, c);      
-                // LidSLi3[i * m + 0] = c[i * m + 0] / covmat[i * m * m + 0 * m + 0];
-                LidSLi3[0] = c[0] / covmat[0 * m + 0];
-
-                for (int k = 1; k < m; k++) {
-                    double dd = 0.0;
-                    for (int l = 0; l < k; l++) {
-                        // dd += covmat[i * m * m + k * m + l] * LidSLi3[i * m + l];
-                        dd += covmat[k * m + l] * LidSLi3[l];
-                    }
-                    // LidSLi3[i * m + k] = (c[i * m + k] - dd) / covmat[i * m * m + k * m + k];
-                    LidSLi3[k] = (c[k] - dd) / covmat[k * m + k];
-                }
-                for (int h = 0; h < p; h++) {
-                    v1[h] = 0;
-                    temp = 0;
-                    for (int k = 0; k < m; k++) {
-                        // temp += LiX0[i * m * p + k * p + h] * LidSLi3[i * m + k];
-                        temp += LiX0[k * p + h] * LidSLi3[k];
-                    }
-                    v1[h] = temp;
-                }
-                double s1 = 0;
-                for (int h = 0; h < m; h++) {
-                    // s1 += Liy0[i * m + h] * LidSLi3[i * m + h];
-                    s1 += Liy0[h] * LidSLi3[h];
-                }
-                double temp3;
-                // double temp4 = LidSLi3[i * m + m - 1];
-                double temp4 = LidSLi3[m - 1];
-                for (int h = 0; h < p; h++) {
-                    temp = v1[h];
-                    temp2 = LiX0[(m - 1) * p + h];
-
-                    for (int k = 0; k < p; k++) {
-                        temp3 = LiX0[(m - 1) * p + k];
-                        dXSX[i * p * p * nparms + h * p * nparms + k * nparms + j] = temp * temp3 +
-                            (v1[k] - temp4 * temp3) * temp2;
-                    }
-                }
-                // temp = Liy0[i * m + m - 1];
-                temp = Liy0[m - 1];
-
-                dySy[i * nparms + j] = (2.0 * s1 - temp4 * temp) * temp;
-
-                temp3 = LidSLi3[m - 1];
-                for (int h = 0; h < p; h++) {
-
-                    temp2 = LiX0[(m - 1) * p + h];
-                    dySX[i * p * nparms + h * nparms + j] = s1 * temp2 +
-                        v1[h] * temp - temp3 * temp2 * temp;
-                }
-
-                //(l_dlogdet)(j) += as_scalar(LidSLi3(i2));
-                dlogdet[i * nparms + j] = temp3;
-
-                //LidSLi2.col(j) = LidSLi3;
-                for (int h = 0; h < m; h++) {
-                    // LidSLi2[i * m * nparms + h * nparms + j] = LidSLi3[i * m + h];
-                    LidSLi2[h * nparms + j] = LidSLi3[h];
-                }
-            }
-
-            for (int h = 0; h < nparms; h++) {
-                // temp2 = LidSLi2[i * m * nparms + (m - 1) * nparms + h];
-                temp2 = LidSLi2[(m - 1) * nparms + h];
-                for (int j = 0; j < h + 1; j++) {
-                    double s = 0;
-                    for (int l = 0; l < m; l++) {
-                        // s += LidSLi2[i * m * nparms + l * nparms + h] * LidSLi2[i * m * nparms + l * nparms + j];
-                        s += LidSLi2[l * nparms + h] * LidSLi2[l * nparms + j];
-                    }
-                    // ainfo[i * nparms * nparms + h * nparms + j] = s - 0.5 * LidSLi2[i * m * nparms + (m - 1) * nparms + j] * temp2;
-                    ainfo[i * nparms * nparms + h * nparms + j] = s - 0.5 * LidSLi2[(m - 1) * nparms + j] * temp2;
-                }
-            }
-           
-        }
     }
+    // else if (m <= 41) {
+    //     double ysub[41];
+    //     double locsub[41 * 6];
+    //     double X0[41 * 10];
+
+    //     // substitute locations
+    //     for (int j = m - 1; j >= 0; j--) {
+    //         ysub[m - 1 - j] = y[static_cast<int>(NNarray[i * m + j]) - 1];
+    //         for (int k = 0; k < dim; k++) {
+    //             locsub[(m - 1 - j) * dim + k] = locs[(static_cast<int>(NNarray[i * m + j]) - 1) * dim + k];
+    //         }
+    //         if (profbeta) {
+    //             for (int k = 0; k < p; k++) {
+    //                 X0[(m - 1 - j) * p + k] = X[(static_cast<int>(NNarray[i * m + j]) - 1) * p + k];
+    //             }
+    //         }
+    //     }
+    
+    //     double covmat[41 * 41];
+    //     double temp;
+
+        
+    //     covariance_func(covfun_name, covparms, locsub, covmat, dim, m);
+
+    //    if (i == 50) {
+    //         // // printf("%f \n", logdet[i]);
+    //         // // printf("%f \n", ySy[i]);
+    //         // for (int j = 0; j < nparms; j++) {
+    //         //     printf("%f ", covparms[j]);
+    //         // }
+    //         // printf("\n");
+    //         // for (int j = 0; j < m; j++) {
+    //         //     for (int k = 0; k < m; k++) {
+    //         //         printf("%f ", covmat[j * m + k]);
+    //         //     }
+    //         //     printf("\n");
+    //         // }
+    //         // for (int j = 0; j < m; j++) {
+    //         //     for (int k = 0; k < p; k++) {
+    //         //         printf("%f ", X0[j * p + k]);
+    //         //     }
+    //         //     printf("\n");
+    //         // }
+    //         // printf("\n");
+    //         // for (int j = 0; j < m; j++) {
+    //         //     for (int k = 0; k < p; k++) {
+    //         //         printf("%f ", LiX0[j * p + k]);
+    //         //     }
+    //         //     printf("\n");
+    //         // }
+
+    //         // for (int j = 0; j < p; j++) {
+    //         //     for (int k = 0; k < p; k++) {
+    //         //         printf("%f ", XSX[i * p * p + j * p + k]);
+    //         //     }
+    //         //     printf("\n");
+    //         // }
+    //         // for (int j = 0; j < m; j++) {
+    //         //     printf("%f ", Liy0[j]);
+    //         // }
+    //         // printf("\n\n");
+    //     }
+        
+        
+    //     double dcovmat[41 * 41 * 6];
+    //     if (grad_info) {
+    //         // calculate derivatives
+    //         //arma::cube dcovmat = arma::cube(n, n, covparms.n_elem, fill::zeros);
+    //         //dcovmat = (double*)malloc(sizeof(double) * m * m * nparms);
+    //         d_covariance_func(covfun_name, covparms, locsub, dcovmat, dim, m, nparms);
+    //     }
+
+    //     // if (i == 100) {
+    //     //     // printf("name: %i \n", covfun_name);
+            
+    //     //     for (int j = 0; j < nparms; j++) {
+    //     //         printf("%f ", covparms[j]);
+    //     //     }
+    //     //     printf("\n\n");
+
+    //     //     for (int j = 0; j < m; j++) {
+    //     //         for (int k = 0; k < dim; k++) {
+    //     //             printf("%f ", locsub[j * dim + k]);
+    //     //         }
+    //     //         printf("\n");
+    //     //     }
+    //     //     printf("\n");
+    //     //     for (int j = 0; j < m; j++) {
+    //     //         for (int k = 0; k < m; k++) {
+    //     //             printf("%f ", covmat[j * m + k]);
+    //     //         }
+    //     //         printf("\n");
+    //     //     }
+    //     // }
+       
+    //     /*arma::mat cholmat = eye(size(covmat));
+    //     chol(cholmat, covmat, "lower");*/
+
+    //     // Cholesky decomposition
+    //     //int k, q, j;
+    //     double temp2;
+    //     double diff;
+    
+    //     int r, j, k, l;
+    //     int retval = 1;
+    //     for (r = 0; r < m + 0; r++) {
+    //         diff = 0;
+    //         for (k = 0; k < r; k++) {
+    //             // temp = covmat[i * m * m + r * m + k];
+    //             temp = covmat[r * m + k];
+    //             diff += temp * temp;
+    //         }
+    //         // covmat[i * m * m + r * m + r] = sqrt(covmat[i * m * m + r * m + r] - diff);
+    //         covmat[r * m + r] = sqrt(covmat[r * m + r] - diff);
+
+
+    //         for (j = r + 1; j < m + 0; j++) {
+    //             diff = 0;
+    //             for (k = 0; k < r; k++) {
+    //                 // diff += covmat[i * m * m + r * m + k] * covmat[i * m * m + j * m + k];
+    //                 diff += covmat[r * m + k] * covmat[j * m + k];
+    //             }
+    //             // covmat[i * m * m + j * m + r] = (covmat[i * m * m + j * m + r] - diff) / covmat[i * m * m + r * m + r];
+    //             covmat[j * m + r] = (covmat[j * m + r] - diff) / covmat[r * m + r];
+    //         }
+    //     }
+
+        
+    //     // i1 is conditioning set, i2 is response        
+    //     //arma::span i1 = span(0,bsize-2);
+    //     //arma::span i2 = span(bsize - 1, bsize - 1);
+
+    //     // get last row of cholmat
+    //     /*arma::vec onevec = zeros(bsize);
+    //     onevec(bsize - 1) = 1.0;*/
+    //     double choli2[41];
+    //     if (grad_info) {
+    //         //choli2 = backward_solve(cholmat, onevec, m);
+    //         // choli2[i * m + m - 1] = 1 / covmat[i * m * m + (m - 1) * m + m - 1];
+    //         choli2[m - 1] = 1 / covmat[(m - 1) * m + m - 1];
+
+    //         for (int k = m - 2; k >= 0; k--) {
+    //             double dd = 0.0;
+    //             for (int j = m - 1; j > k; j--) {
+    //                 // dd += covmat[i * m * m + j * m + k] * choli2[i * m + j];
+    //                 dd += covmat[j * m + k] * choli2[j];
+    //             }
+    //             // choli2[i * m + k] = (-dd) / covmat[i * m * m + k * m + k];
+    //             choli2[k] = (-dd) / covmat[k * m + k];
+    //         }
+    //     }
+        
+    //     //bool cond = bsize > 1;
+    //     double LiX0[41 * 10];
+    //     for (int j = 0; j < 41 * 10; j++) {
+    //         LiX0[j] = 0;
+    //     }
+    //     // do solves with X and y
+    //     for (int j = 0; j < m; j++) {
+    //         for (int k = j + 1; k < m; k++) {
+    //             // covmat[i * m * m + j * m + k] = 0.0;
+    //             covmat[j * m + k] = 0.0;
+    //         }
+    //     }
+    //     if (profbeta) {
+    //         // LiX0 = forward_solve_mat(cholmat, X0, m, p);
+    //         for (int k = 0; k < p; k++) {
+    //             // LiX0[i * m * p + 0 * p + k] = X0[i * m * p + 0 * p + k] / covmat[i * m * m + 0 * m + 0];
+    //             LiX0[0 * p + k] = X0[0 * p + k] / covmat[0 * m + 0];
+
+    //         }
+
+    //         for (int h = 1; h < m; h++) {
+    //             for (int k = 0; k < p; k++) {
+    //                 double dd = 0.0;
+    //                 for (int j = 0; j < h; j++) {
+    //                     // dd += covmat[i * m * m + h * m + j] * LiX0[i * m * p + j * p + k];
+    //                     dd += covmat[h * m + j] * LiX0[j * p + k];
+    //                 }
+    //                 // LiX0[i * m * p + h * p + k] = (X0[i * m * p + h * p + k] - dd) / covmat[i * m * m + h * m + h];
+    //                 LiX0[h * p + k] = (X0[h * p + k] - dd) / covmat[h * m + h];
+    //             }
+    //         }
+            
+
+    //     }
+
+        
+        
+
+    //     //arma::vec Liy0 = solve( trimatl(cholmat), ysub );
+    //     //double* Liy0 = forward_solve(cholmat, ysub, m);
+    //     //double* Liy0 = (double*)malloc(sizeof(double) * m);
+    //     /*for (int j = 0; j < m; j++) {
+    //         Liy0[i * m + j] = 0.0f;
+    //     }*/
+    //     double Liy0[41];
+    //     // Liy0[i * m + 0] = ysub[i * m + 0] / covmat[i * m * m + 0 * m + 0];
+    //     Liy0[0] = ysub[0] / covmat[0 * m + 0];
+
+    //     for (int k = 1; k < m; k++) {
+    //         double dd = 0.0;
+    //         for (int j = 0; j < k; j++) {
+    //             // dd += covmat[i * m * m + k * m + j] * Liy0[i * m + j];
+    //             dd += covmat[k * m + j] * Liy0[j];
+    //         }
+    //         // Liy0[i * m + k] = (ysub[i * m + k] - dd) / covmat[i * m * m + k * m + k];
+    //         Liy0[k] = (ysub[k] - dd) / covmat[k * m + k];
+
+    //     }
+       
+
+    //     // loglik objects
+    //     // logdet[i] = 2.0 * log(covmat[i * m * m + (m - 1) * m + m - 1]);
+    //     logdet[i] = 2.0 * log(covmat[(m - 1) * m + m - 1]);
+        
+    //     // temp = Liy0[i * m + m - 1];
+    //     temp = Liy0[m - 1];
+    //     ySy[i] = temp * temp;
+    //     // if (i == 100) {
+    //     //     printf("kern: %f\n", temp * temp);
+    //     // }
+        
+    //     if (profbeta) {
+    //         /*l_XSX += LiX0.rows(i2).t() * LiX0.rows(i2);
+    //         l_ySX += (Liy0(i2) * LiX0.rows(i2)).t();*/
+    //         // temp2 = Liy0[i * m + m - 1];
+    //         temp2 = Liy0[m - 1];
+    //         for (int i1 = 0; i1 < p; i1++) {
+    //             // temp = LiX0[i * m * p + (m - 1) * p + i1];
+    //             temp = LiX0[(m - 1) * p + i1];
+    //             for (int i2 = 0; i2 <= i1; i2++) {
+    //                 // XSX[i * p * p + i1 * p + i2] = temp * LiX0[i * m * p + (m - 1) * p + i2];
+    //                 // XSX[i * p * p + i2 * p + i1] = XSX[i * p * p + i1 * p + i2];
+
+    //                 XSX[i * p * p + i1 * p + i2] = temp * LiX0[(m - 1) * p + i2];
+    //                 XSX[i * p * p + i2 * p + i1] = XSX[i * p * p + i1 * p + i2]; 
+    //             }
+    //             // ySX[i * p + i1] = temp2 * LiX0[i * m * p + (m - 1) * p + i1];
+    //             ySX[i * p + i1] = temp2 * LiX0[(m - 1) * p + i1];
+    //         }
+            
+    //     }
+        
+    //     double LidSLi3[41];
+    //     double c[41];
+	// 	double LidSLi2[41 * 8];
+    //     double v1[10];
+    //     if (grad_info) {
+    //         // gradient objects
+    //         // LidSLi3 is last column of Li * (dS_j) * Lit for 1 parameter i
+    //         // LidSLi2 stores these columns in a matrix for all parameters
+    //         // arma::mat LidSLi2(bsize, nparms);
+
+
+
+    //         for (int j = 0; j < nparms; j++) {
+    //             // compute last column of Li * (dS_j) * Lit
+    //             //arma::vec LidSLi3 = forward_solve(cholmat, dcovmat.slice(j) * choli2);
+    //             // c = dcovmat.slice(j) * choli2
+    //             for (int h = 0; h < m; h++) {
+    //                 c[h] = 0;
+    //                 temp = 0;
+    //                 for (int k = 0; k < m; k++) {
+    //                     // temp += dcovmat[i * m * m * nparms + h * m * nparms + k * nparms + j] * choli2[i * m + k];
+    //                     temp += dcovmat[h * m * nparms + k * nparms + j] * choli2[k];
+    //                 }
+    //                 // c[i * m + h] = temp;
+    //                 c[h] = temp;
+    //             }
+
+    //             //LidSLi3 = forward_solve(cholmat, c);      
+    //             // LidSLi3[i * m + 0] = c[i * m + 0] / covmat[i * m * m + 0 * m + 0];
+    //             LidSLi3[0] = c[0] / covmat[0 * m + 0];
+
+    //             for (int k = 1; k < m; k++) {
+    //                 double dd = 0.0;
+    //                 for (int l = 0; l < k; l++) {
+    //                     // dd += covmat[i * m * m + k * m + l] * LidSLi3[i * m + l];
+    //                     dd += covmat[k * m + l] * LidSLi3[l];
+    //                 }
+    //                 // LidSLi3[i * m + k] = (c[i * m + k] - dd) / covmat[i * m * m + k * m + k];
+    //                 LidSLi3[k] = (c[k] - dd) / covmat[k * m + k];
+    //             }
+
+    //             ////////////////
+    //             //arma::vec v1 = LiX0.t() * LidSLi3;
+
+    //             for (int h = 0; h < p; h++) {
+    //                 v1[h] = 0;
+    //                 temp = 0;
+    //                 for (int k = 0; k < m; k++) {
+    //                     // temp += LiX0[i * m * p + k * p + h] * LidSLi3[i * m + k];
+    //                     temp += LiX0[k * p + h] * LidSLi3[k];
+    //                 }
+    //                 v1[h] = temp;
+    //             }
+
+    //             ////////////////
+
+    //             //double s1 = as_scalar(Liy0.t() * LidSLi3);
+    //             double s1 = 0;
+    //             for (int h = 0; h < m; h++) {
+    //                 // s1 += Liy0[i * m + h] * LidSLi3[i * m + h];
+    //                 s1 += Liy0[h] * LidSLi3[h];
+    //             }
+
+    //             ////////////////
+
+    //             /*(l_dXSX).slice(j) += v1 * LiX0.rows(i2) + (v1 * LiX0.rows(i2)).t() -
+    //                 as_scalar(LidSLi3(i2)) * (LiX0.rows(i2).t() * LiX0.rows(i2));*/
+
+    //                 //double* v1LiX0 = (double*)malloc(sizeof(double) * m * m);
+    //             double temp3;
+    //             // double temp4 = LidSLi3[i * m + m - 1];
+    //             double temp4 = LidSLi3[m - 1];
+    //             for (int h = 0; h < p; h++) {
+    //                 // temp = v1[i * p + h];
+    //                 // temp2 = LiX0[i * m * p + (m - 1) * p + h];
+
+    //                 temp = v1[h];
+    //                 temp2 = LiX0[(m - 1) * p + h];
+
+    //                 for (int k = 0; k < p; k++) {
+    //                     // temp3 = LiX0[i * m * p + (m - 1) * p + k];
+    //                     // dXSX[i * p * p * nparms + h * p * nparms + k * nparms + j] = temp * temp3 +
+    //                     //     (v1[i * p + k] - temp4 * temp3) * temp2;
+
+    //                     temp3 = LiX0[(m - 1) * p + k];
+    //                     dXSX[i * p * p * nparms + h * p * nparms + k * nparms + j] = temp * temp3 +
+    //                         (v1[k] - temp4 * temp3) * temp2;
+    //                 }
+    //             }
+    //             // temp = Liy0[i * m + m - 1];
+    //             temp = Liy0[m - 1];
+    //             ///////////////
+    //             /*(l_dySy)(j) += as_scalar(2.0 * s1 * Liy0(i2) -
+    //                 LidSLi3(i2) * Liy0(i2) * Liy0(i2));*/
+    //             dySy[i * nparms + j] = (2.0 * s1 - temp4 * temp) * temp;
+
+    //             /*(l_dySX).col(j) += (s1 * LiX0.rows(i2) + (v1 * Liy0(i2)).t() -
+    //                 as_scalar(LidSLi3(i2)) * LiX0.rows(i2) * as_scalar(Liy0(i2))).t();*/
+
+    //             // temp3 = LidSLi3[i * m + m - 1];
+    //             temp3 = LidSLi3[m - 1];
+    //             for (int h = 0; h < p; h++) {
+    //                 // temp2 = LiX0[i * m * p + (m - 1) * p + h];
+    //                 // dySX[i * p * nparms + h * nparms + j] = s1 * temp2 +
+    //                 //     v1[i * p + h] * temp - temp3 * temp2 * temp;
+
+    //                 temp2 = LiX0[(m - 1) * p + h];
+    //                 dySX[i * p * nparms + h * nparms + j] = s1 * temp2 +
+    //                     v1[h] * temp - temp3 * temp2 * temp;
+    //             }
+
+    //             //(l_dlogdet)(j) += as_scalar(LidSLi3(i2));
+    //             dlogdet[i * nparms + j] = temp3;
+
+    //             //LidSLi2.col(j) = LidSLi3;
+    //             for (int h = 0; h < m; h++) {
+    //                 // LidSLi2[i * m * nparms + h * nparms + j] = LidSLi3[i * m + h];
+    //                 LidSLi2[h * nparms + j] = LidSLi3[h];
+    //             }
+    //             /*if (i == 40 && j == 2) {
+    //                 printf("CPU s1\n");
+    //                 printf("%f", s1);
+    //             }*/
+
+    //         }
+            
+    //         // fisher information object
+    //         // bottom right corner gets double counted, so subtract it off
+    //         for (int h = 0; h < nparms; h++) {
+    //             // temp2 = LidSLi2[i * m * nparms + (m - 1) * nparms + h];
+    //             temp2 = LidSLi2[(m - 1) * nparms + h];
+    //             for (int j = 0; j < h + 1; j++) {
+    //                 /*(l_ainfo)(h, j) +=
+    //                     1.0 * accu(LidSLi2.col(h) % LidSLi2.col(j)) -
+    //                     0.5 * accu(LidSLi2.rows(i2).col(j) %
+    //                         LidSLi2.rows(i2).col(h));*/
+    //                 double s = 0;
+    //                 for (int l = 0; l < m; l++) {
+    //                     // s += LidSLi2[i * m * nparms + l * nparms + h] * LidSLi2[i * m * nparms + l * nparms + j];
+    //                     s += LidSLi2[l * nparms + h] * LidSLi2[l * nparms + j];
+    //                 }
+    //                 // ainfo[i * nparms * nparms + h * nparms + j] = s - 0.5 * LidSLi2[i * m * nparms + (m - 1) * nparms + j] * temp2;
+    //                 ainfo[i * nparms * nparms + h * nparms + j] = s - 0.5 * LidSLi2[(m - 1) * nparms + j] * temp2;
+    //             }
+    //         }
+           
+    //     }
+    // }
    
 }
 
@@ -1832,6 +1958,7 @@ void free_data(double** data_stores) {
 extern "C"
 void call_compute_pieces_gpu(
     const double* covparms,
+    const short covfun_name,
     const double* locs,
     const double* NNarray,
     const double* y,
@@ -1845,8 +1972,8 @@ void call_compute_pieces_gpu(
     double* dySy,
     double* dlogdet,
     double* ainfo,
-    const int profbeta,
-    const int grad_info,
+    const bool profbeta,
+    const bool grad_info,
     const int n,
     const int m,
     const int p,
@@ -1859,11 +1986,13 @@ void call_compute_pieces_gpu(
     double* d_NNarray;
     double* d_y;
     double* d_X;
+    double* d_covparms;
 
     gpuErrchk(cudaMalloc((void**)&d_locs, sizeof(double) * n * dim));
     gpuErrchk(cudaMalloc((void**)&d_NNarray, sizeof(double) * n * m));
     gpuErrchk(cudaMalloc((void**)&d_y, sizeof(double) * n));
     gpuErrchk(cudaMalloc((void**)&d_X, sizeof(double) * n * p));
+    gpuErrchk(cudaMalloc((void**)&d_covparms, sizeof(double) * nparms));
 
     // d_locs = data_stores[0];
     // d_NNarray = data_stores[1];
@@ -1927,6 +2056,7 @@ void call_compute_pieces_gpu(
     gpuErrchk(cudaMemcpy(d_NNarray, NNarray, sizeof(double) * n * m, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_y, y, sizeof(double) * n, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_X, X, sizeof(double) * n * p, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(d_covparms, covparms, sizeof(double) * nparms, cudaMemcpyHostToDevice));
 
     int grid_size = 64;
     int block_size = ((n + grid_size) / grid_size);
@@ -1934,9 +2064,9 @@ void call_compute_pieces_gpu(
     compute_pieces <<<block_size, grid_size>>> (d_y, d_X, d_NNarray, d_locs,/* d_locs_scaled,*/
         /*d_covmat,*/ d_logdet, d_ySy, d_XSX, d_ySX,
         d_dXSX, d_dySX, d_dySy, d_dlogdet, d_ainfo,
-        covparms[0], covparms[1], covparms[2],
+        d_covparms, covfun_name,
         n, p, m, dim, nparms,
-        profbeta, grad_info//,
+        profbeta, grad_info//,s
         /*d_dcovmat,
         d_ysub, d_X0, d_Liy0, d_LiX0, d_choli2, d_onevec,
         d_LidSLi2, d_c, d_v1, d_LidSLi3*/);
@@ -1978,34 +2108,85 @@ void call_compute_pieces_gpu(
     gpuErrchk(cudaFree(d_y));
     gpuErrchk(cudaFree(d_X));
 
+    // ySy[0] = 0;
+    // logdet[0] = 0;
+    // for (int i = 0; i < n; i++) {
+        
+    //     ySy[0] += l_ySy[i];
+    //     logdet[0] += l_logdet[i];
+    //     for (int j = 0; j < p; j++) {
+    //         ySX[j] += l_ySX[i * p + j];
+    //         for (int k = 0; k < p; k++) {
+    //             XSX[j * p + k] += l_XSX[i * p * p + j * p + k];
+    //             for (int l = 0; l < nparms; l++) {
+    //                 dXSX[j * p * nparms + k * nparms + l] += l_dXSX[i * p * p * nparms + j * p * nparms + k * nparms + l];
+    //                 //dXSX[j * p * nparms + k * nparms + l] += 0;
+    //             }
+    //         }
+    //         for (int k = 0; k < nparms; k++) {
+    //             dySX[j * nparms + k] += l_dySX[i * p * nparms + j * nparms + k];
+    //             //printf("%f ", l_dySX[i * p * nparms + j * nparms + k]);
+    //         }
+    //     }
+    //     for (int j = 0; j < nparms; j++) {
+    //         dySy[j] += l_dySy[i * nparms + j];
+    //         dlogdet[j] += l_dlogdet[i * nparms + j];
+    //         for (int k = 0; k < nparms; k++) {
+    //             ainfo[j * nparms + k] += l_ainfo[i * nparms * nparms + j * nparms + k];
+    //         }
+    //     }
+    // }
+
     ySy[0] = 0;
     logdet[0] = 0;
-    for (int i = 0; i < n; i++) {
-        
+    for (int i = m; i < n; i++) {
+        // printf("%i, %f\n", i, l_ySy[i]);
         ySy[0] += l_ySy[i];
         logdet[0] += l_logdet[i];
+        
         for (int j = 0; j < p; j++) {
+            if (i == m) {
+                ySX[j] = 0;
+            }
+            
             ySX[j] += l_ySX[i * p + j];
             for (int k = 0; k < p; k++) {
+                if (i == m) {
+                    XSX[j * p + k] = 0;
+                }
                 XSX[j * p + k] += l_XSX[i * p * p + j * p + k];
                 for (int l = 0; l < nparms; l++) {
+                    if (i == m) {
+                        dXSX[j * p * nparms + k * nparms + l] = 0;
+                    }
                     dXSX[j * p * nparms + k * nparms + l] += l_dXSX[i * p * p * nparms + j * p * nparms + k * nparms + l];
                     //dXSX[j * p * nparms + k * nparms + l] += 0;
                 }
             }
             for (int k = 0; k < nparms; k++) {
+                if (i == m) {
+                    dySX[j * nparms + k] = 0;
+                }
                 dySX[j * nparms + k] += l_dySX[i * p * nparms + j * nparms + k];
                 //printf("%f ", l_dySX[i * p * nparms + j * nparms + k]);
             }
         }
         for (int j = 0; j < nparms; j++) {
+            if (i == m) {
+                dySy[j] = 0;
+                dlogdet[j] = 0;
+            }
             dySy[j] += l_dySy[i * nparms + j];
             dlogdet[j] += l_dlogdet[i * nparms + j];
             for (int k = 0; k < nparms; k++) {
+                if (i == m) {
+                    ainfo[j * nparms + k] = 0;
+                }
                 ainfo[j * nparms + k] += l_ainfo[i * nparms * nparms + j * nparms + k];
             }
         }
     }
+
     free(l_ySy);
     free(l_logdet);
     free(l_ySX);
@@ -2015,7 +2196,7 @@ void call_compute_pieces_gpu(
     free(l_dySy);
     free(l_dlogdet);
     free(l_ainfo);
-
+    // cudaDeviceReset();
     
     
 }
@@ -2123,12 +2304,12 @@ void call_compute_pieces_fisher_gpu(
     int block_size = 512;
     int grid_size = ((n + block_size) / block_size);
 
-    compute_pieces <<<grid_size, block_size>>> (d_y, d_X, d_NNarray, d_locs,/* d_locs_scaled,*/
-        /*d_covmat,*/ d_logdet, d_ySy, d_XSX, d_ySX,
-        d_dXSX, d_dySX, d_dySy, d_dlogdet, d_ainfo,
-        covparms[0], covparms[1], covparms[2],
-        n, p, m, dim, nparms,
-        profbeta, grad_info);
+    // compute_pieces <<<grid_size, block_size>>> (d_y, d_X, d_NNarray, d_locs,/* d_locs_scaled,*/
+    //     /*d_covmat,*/ d_logdet, d_ySy, d_XSX, d_ySX,
+    //     d_dXSX, d_dySX, d_dySy, d_dlogdet, d_ainfo,
+    //     covparms, covfun_name,
+    //     n, p, m, dim, nparms,
+    //     profbeta, grad_info);
     // gpuErrchk(cudaPeekAtLastError());
     gpuErrchk(cudaDeviceSynchronize());
     
@@ -2240,42 +2421,66 @@ void call_compute_pieces_fisher_gpu(
     
 }
 
-__global__ void call_Linv_mult(double* Linv, double* NNarray, double* z, double* x, int n, int m){
+__global__ void call_Linv_mult(double* Linv, int* NNarray, double* z, double* x, int n, int m){
+    // int i = blockIdx.x * blockDim.x + threadIdx.x;
+    // if (i < n){
+    //     int bsize = min(i+1,m);
+    //     double temp = 0;
+    //     for(int j=0; j<bsize; j++){
+    //         temp += z[ static_cast<int>(NNarray[i * m + j]) - 1 ] * Linv[i * m + j];
+    //     }
+    //     x[i] = temp;
+    // }
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i < n){
-        int bsize = min(i+1,m);
-        double temp = 0;
-        for(int j=0; j<bsize; j++){
-            temp += z[ static_cast<int>(NNarray[i * m + j]) - 1 ] * Linv[i * m + j];
-        }
-        x[i] = temp;
+    int j = threadIdx.y;
+    if (i < n && j < m && i >= j) {
+        Linv[i * m + j] = Linv[i * m + j] * z[ NNarray[i * m + j] - 1 ];
     }
 }
 
 extern "C"
-double* call_Linv_mult_gpu(double* Linv, double* z, double* NNarray, int n, int m){
+double* call_Linv_mult_gpu(double* Linv, double* z, int* NNarray, int n, int m){
     double* d_Linv;
-    double* d_NNarray;
+    int* d_NNarray;
     double* d_z;
     double* d_x;
 
     gpuErrchk(cudaMalloc((void**)&d_Linv, sizeof(double) * n * m));
-    gpuErrchk(cudaMalloc((void**)&d_NNarray, sizeof(double) * n * m));
+    gpuErrchk(cudaMalloc((void**)&d_NNarray, sizeof(int) * n * m));
     gpuErrchk(cudaMalloc((void**)&d_z, sizeof(double) * n));
     gpuErrchk(cudaMalloc((void**)&d_x, sizeof(double) * n));
 
     gpuErrchk(cudaMemcpy(d_Linv, Linv, sizeof(double) * n * m, cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(d_NNarray, NNarray, sizeof(double) * n * m, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(d_NNarray, NNarray, sizeof(int) * n * m, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_z, z, sizeof(double) * n, cudaMemcpyHostToDevice));
 
-    int grid_size = 64;
-    int block_size = ((n + grid_size) / grid_size);
+    // int grid_size = 64;
+    // int block_size = ((n + grid_size) / grid_size);
 
-    call_Linv_mult << <block_size, grid_size >> > (d_Linv, d_NNarray, d_z, d_x, n, m);
+    // call_Linv_mult << <block_size, grid_size >> > (d_Linv, d_NNarray, d_z, d_x, n, m);
+    // cudaDeviceSynchronize();
+
+    dim3 threadsPerBlock(m, m);
+    int numBlocks2 = ((n + m) / m);
+    call_Linv_mult << <numBlocks2, threadsPerBlock >> > (d_Linv, d_NNarray, d_z, d_x, n, m);
     cudaDeviceSynchronize();
 
+    double* Lx = (double*)malloc(sizeof(double) * n * m);
+
+    gpuErrchk(cudaMemcpy(Lx, d_Linv, sizeof(double) * n * m, cudaMemcpyDeviceToHost));
+
     double* x = (double*)malloc(sizeof(double) * n);
-    gpuErrchk(cudaMemcpy(x, d_x, sizeof(double) * n, cudaMemcpyDeviceToHost));
+    double temp = 0;
+    for (int i = 0; i < n; i++) {
+        temp = 0;
+        for (int j = 0; j < m; j++) {
+            temp += Lx[i * m + j];
+        }
+        x[i] = temp;
+    }
+
+
+    // gpuErrchk(cudaMemcpy(x, d_x, sizeof(double) * n, cudaMemcpyDeviceToHost));
 
     return x;
 }

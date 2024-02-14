@@ -6,7 +6,7 @@ The package includes implementations of the Vecchia's (1988) original
 approximation, as well as several updates to it, including the reordered
 and grouped versions of the approximation outlined in Guinness (2018).
 
-GpGpU supports the use of CUDA enabled GPUs. GPU acceleration is currently available for calculating the sparse inverse Cholesky matrix implied by Vecchia's with the exponential isotropic covariance function.
+GpGpU supports the use of CUDA enabled GPUs. GPU acceleration is currently available for calculating the sparse inverse Cholesky matrix implied by Vecchia's, calculating likelihood, and fitting a Gaussian process model with Fisher scoring. Several covariance functions are supported.
 
 ## Installing
 

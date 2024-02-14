@@ -36,16 +36,17 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// vecchia_Linv_gpu_isotropic_exponential
-arma::mat vecchia_Linv_gpu_isotropic_exponential(arma::vec covparms, arma::mat locs, arma::mat NNarray);
-RcppExport SEXP _GpGpU_vecchia_Linv_gpu_isotropic_exponential(SEXP covparmsSEXP, SEXP locsSEXP, SEXP NNarraySEXP) {
+// vecchia_Linv_gpu
+arma::mat vecchia_Linv_gpu(arma::vec covparms, StringVector covfun_name, arma::mat locs, arma::mat NNarray);
+RcppExport SEXP _GpGpU_vecchia_Linv_gpu(SEXP covparmsSEXP, SEXP covfun_nameSEXP, SEXP locsSEXP, SEXP NNarraySEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
+    Rcpp::traits::input_parameter< StringVector >::type covfun_name(covfun_nameSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type NNarray(NNarraySEXP);
-    rcpp_result_gen = Rcpp::wrap(vecchia_Linv_gpu_isotropic_exponential(covparms, locs, NNarray));
+    rcpp_result_gen = Rcpp::wrap(vecchia_Linv_gpu(covparms, covfun_name, locs, NNarray));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -63,32 +64,53 @@ BEGIN_RCPP
 END_RCPP
 }
 // vecchia_profbeta_loglik_grad_info_gpu
-List vecchia_profbeta_loglik_grad_info_gpu(NumericVector covparms, NumericVector y, NumericMatrix X, const NumericMatrix locs, NumericMatrix NNarray);
-RcppExport SEXP _GpGpU_vecchia_profbeta_loglik_grad_info_gpu(SEXP covparmsSEXP, SEXP ySEXP, SEXP XSEXP, SEXP locsSEXP, SEXP NNarraySEXP) {
+List vecchia_profbeta_loglik_grad_info_gpu(NumericVector covparms, StringVector covfun_name, NumericVector y, NumericMatrix X, const NumericMatrix locs, NumericMatrix NNarray);
+RcppExport SEXP _GpGpU_vecchia_profbeta_loglik_grad_info_gpu(SEXP covparmsSEXP, SEXP covfun_nameSEXP, SEXP ySEXP, SEXP XSEXP, SEXP locsSEXP, SEXP NNarraySEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< NumericVector >::type covparms(covparmsSEXP);
+    Rcpp::traits::input_parameter< StringVector >::type covfun_name(covfun_nameSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type y(ySEXP);
     Rcpp::traits::input_parameter< NumericMatrix >::type X(XSEXP);
     Rcpp::traits::input_parameter< const NumericMatrix >::type locs(locsSEXP);
     Rcpp::traits::input_parameter< NumericMatrix >::type NNarray(NNarraySEXP);
-    rcpp_result_gen = Rcpp::wrap(vecchia_profbeta_loglik_grad_info_gpu(covparms, y, X, locs, NNarray));
+    rcpp_result_gen = Rcpp::wrap(vecchia_profbeta_loglik_grad_info_gpu(covparms, covfun_name, y, X, locs, NNarray));
     return rcpp_result_gen;
 END_RCPP
 }
 // vecchia_profbeta_loglik_gpu
-List vecchia_profbeta_loglik_gpu(NumericVector covparms, NumericVector y, NumericMatrix X, const NumericMatrix locs, NumericMatrix NNarray);
-RcppExport SEXP _GpGpU_vecchia_profbeta_loglik_gpu(SEXP covparmsSEXP, SEXP ySEXP, SEXP XSEXP, SEXP locsSEXP, SEXP NNarraySEXP) {
+List vecchia_profbeta_loglik_gpu(NumericVector covparms, StringVector covfun_name, NumericVector y, NumericMatrix X, const NumericMatrix locs, NumericMatrix NNarray);
+RcppExport SEXP _GpGpU_vecchia_profbeta_loglik_gpu(SEXP covparmsSEXP, SEXP covfun_nameSEXP, SEXP ySEXP, SEXP XSEXP, SEXP locsSEXP, SEXP NNarraySEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< NumericVector >::type covparms(covparmsSEXP);
+    Rcpp::traits::input_parameter< StringVector >::type covfun_name(covfun_nameSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type y(ySEXP);
     Rcpp::traits::input_parameter< NumericMatrix >::type X(XSEXP);
     Rcpp::traits::input_parameter< const NumericMatrix >::type locs(locsSEXP);
     Rcpp::traits::input_parameter< NumericMatrix >::type NNarray(NNarraySEXP);
-    rcpp_result_gen = Rcpp::wrap(vecchia_profbeta_loglik_gpu(covparms, y, X, locs, NNarray));
+    rcpp_result_gen = Rcpp::wrap(vecchia_profbeta_loglik_gpu(covparms, covfun_name, y, X, locs, NNarray));
+    return rcpp_result_gen;
+END_RCPP
+}
+// fisher_scoring_gpu
+List fisher_scoring_gpu(NumericVector start_params, NumericVector y, NumericMatrix X, NumericMatrix locs, NumericMatrix NNarray, double vv, bool silent, double convtol, int max_iter);
+RcppExport SEXP _GpGpU_fisher_scoring_gpu(SEXP start_paramsSEXP, SEXP ySEXP, SEXP XSEXP, SEXP locsSEXP, SEXP NNarraySEXP, SEXP vvSEXP, SEXP silentSEXP, SEXP convtolSEXP, SEXP max_iterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type start_params(start_paramsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type y(ySEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type X(XSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type locs(locsSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type NNarray(NNarraySEXP);
+    Rcpp::traits::input_parameter< double >::type vv(vvSEXP);
+    Rcpp::traits::input_parameter< bool >::type silent(silentSEXP);
+    Rcpp::traits::input_parameter< double >::type convtol(convtolSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter(max_iterSEXP);
+    rcpp_result_gen = Rcpp::wrap(fisher_scoring_gpu(start_params, y, X, locs, NNarray, vv, silent, convtol, max_iter));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -105,20 +127,8 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// sph_grad_xyz
-arma::cube sph_grad_xyz(arma::mat xyz, int Lmax);
-RcppExport SEXP _GpGpU_sph_grad_xyz(SEXP xyzSEXP, SEXP LmaxSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::mat >::type xyz(xyzSEXP);
-    Rcpp::traits::input_parameter< int >::type Lmax(LmaxSEXP);
-    rcpp_result_gen = Rcpp::wrap(sph_grad_xyz(xyz, Lmax));
-    return rcpp_result_gen;
-END_RCPP
-}
 // exponential_isotropic
-arma::mat exponential_isotropic(arma::vec covparms, arma::mat locs);
+inline arma::mat exponential_isotropic(arma::vec covparms, arma::mat locs);
 RcppExport SEXP _GpGpU_exponential_isotropic(SEXP covparmsSEXP, SEXP locsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -130,7 +140,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // d_exponential_isotropic
-arma::cube d_exponential_isotropic(arma::vec covparms, arma::mat locs);
+inline arma::cube d_exponential_isotropic(arma::vec covparms, arma::mat locs);
 RcppExport SEXP _GpGpU_d_exponential_isotropic(SEXP covparmsSEXP, SEXP locsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -142,7 +152,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // matern_isotropic
-arma::mat matern_isotropic(arma::vec covparms, arma::mat locs);
+inline arma::mat matern_isotropic(arma::vec covparms, arma::mat locs);
 RcppExport SEXP _GpGpU_matern_isotropic(SEXP covparmsSEXP, SEXP locsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -154,7 +164,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // d_matern_isotropic
-arma::cube d_matern_isotropic(arma::vec covparms, arma::mat locs);
+inline arma::cube d_matern_isotropic(arma::vec covparms, arma::mat locs);
 RcppExport SEXP _GpGpU_d_matern_isotropic(SEXP covparmsSEXP, SEXP locsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -166,7 +176,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // matern15_isotropic
-arma::mat matern15_isotropic(arma::vec covparms, arma::mat locs);
+inline arma::mat matern15_isotropic(arma::vec covparms, arma::mat locs);
 RcppExport SEXP _GpGpU_matern15_isotropic(SEXP covparmsSEXP, SEXP locsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -178,7 +188,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // d_matern15_isotropic
-arma::cube d_matern15_isotropic(arma::vec covparms, arma::mat locs);
+inline arma::cube d_matern15_isotropic(arma::vec covparms, arma::mat locs);
 RcppExport SEXP _GpGpU_d_matern15_isotropic(SEXP covparmsSEXP, SEXP locsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -189,152 +199,8 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// matern_anisotropic2D
-arma::mat matern_anisotropic2D(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_matern_anisotropic2D(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(matern_anisotropic2D(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_matern_anisotropic2D
-arma::cube d_matern_anisotropic2D(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_d_matern_anisotropic2D(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_matern_anisotropic2D(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// matern_anisotropic3D
-arma::mat matern_anisotropic3D(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_matern_anisotropic3D(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(matern_anisotropic3D(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_matern_anisotropic3D
-arma::cube d_matern_anisotropic3D(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_d_matern_anisotropic3D(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_matern_anisotropic3D(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// matern_anisotropic3D_alt
-arma::mat matern_anisotropic3D_alt(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_matern_anisotropic3D_alt(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(matern_anisotropic3D_alt(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_matern_anisotropic3D_alt
-arma::cube d_matern_anisotropic3D_alt(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_d_matern_anisotropic3D_alt(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_matern_anisotropic3D_alt(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// exponential_anisotropic2D
-arma::mat exponential_anisotropic2D(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_exponential_anisotropic2D(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(exponential_anisotropic2D(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_exponential_anisotropic2D
-arma::cube d_exponential_anisotropic2D(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_d_exponential_anisotropic2D(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_exponential_anisotropic2D(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// exponential_anisotropic3D
-arma::mat exponential_anisotropic3D(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_exponential_anisotropic3D(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(exponential_anisotropic3D(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_exponential_anisotropic3D
-arma::cube d_exponential_anisotropic3D(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_d_exponential_anisotropic3D(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_exponential_anisotropic3D(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// exponential_anisotropic3D_alt
-arma::mat exponential_anisotropic3D_alt(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_exponential_anisotropic3D_alt(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(exponential_anisotropic3D_alt(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_exponential_anisotropic3D_alt
-arma::cube d_exponential_anisotropic3D_alt(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_d_exponential_anisotropic3D_alt(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_exponential_anisotropic3D_alt(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
 // matern_scaledim
-arma::mat matern_scaledim(arma::vec covparms, arma::mat locs);
+inline arma::mat matern_scaledim(arma::vec covparms, arma::mat locs);
 RcppExport SEXP _GpGpU_matern_scaledim(SEXP covparmsSEXP, SEXP locsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -346,7 +212,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // d_matern_scaledim
-arma::cube d_matern_scaledim(arma::vec covparms, arma::mat locs);
+inline arma::cube d_matern_scaledim(arma::vec covparms, arma::mat locs);
 RcppExport SEXP _GpGpU_d_matern_scaledim(SEXP covparmsSEXP, SEXP locsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -358,7 +224,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // exponential_scaledim
-arma::mat exponential_scaledim(arma::vec covparms, arma::mat locs);
+inline arma::mat exponential_scaledim(arma::vec covparms, arma::mat locs);
 RcppExport SEXP _GpGpU_exponential_scaledim(SEXP covparmsSEXP, SEXP locsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -370,7 +236,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // d_exponential_scaledim
-arma::cube d_exponential_scaledim(arma::vec covparms, arma::mat locs);
+inline arma::cube d_exponential_scaledim(arma::vec covparms, arma::mat locs);
 RcppExport SEXP _GpGpU_d_exponential_scaledim(SEXP covparmsSEXP, SEXP locsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -382,7 +248,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // matern_spacetime
-arma::mat matern_spacetime(arma::vec covparms, arma::mat locs);
+inline arma::mat matern_spacetime(arma::vec covparms, arma::mat locs);
 RcppExport SEXP _GpGpU_matern_spacetime(SEXP covparmsSEXP, SEXP locsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -394,7 +260,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // d_matern_spacetime
-arma::cube d_matern_spacetime(arma::vec covparms, arma::mat locs);
+inline arma::cube d_matern_spacetime(arma::vec covparms, arma::mat locs);
 RcppExport SEXP _GpGpU_d_matern_spacetime(SEXP covparmsSEXP, SEXP locsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -406,7 +272,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // exponential_spacetime
-arma::mat exponential_spacetime(arma::vec covparms, arma::mat locs);
+inline arma::mat exponential_spacetime(arma::vec covparms, arma::mat locs);
 RcppExport SEXP _GpGpU_exponential_spacetime(SEXP covparmsSEXP, SEXP locsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -418,7 +284,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // d_exponential_spacetime
-arma::cube d_exponential_spacetime(arma::vec covparms, arma::mat locs);
+inline arma::cube d_exponential_spacetime(arma::vec covparms, arma::mat locs);
 RcppExport SEXP _GpGpU_d_exponential_spacetime(SEXP covparmsSEXP, SEXP locsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -429,56 +295,8 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// matern_sphere
-arma::mat matern_sphere(arma::vec covparms, arma::mat lonlat);
-RcppExport SEXP _GpGpU_matern_sphere(SEXP covparmsSEXP, SEXP lonlatSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type lonlat(lonlatSEXP);
-    rcpp_result_gen = Rcpp::wrap(matern_sphere(covparms, lonlat));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_matern_sphere
-arma::cube d_matern_sphere(arma::vec covparms, arma::mat lonlat);
-RcppExport SEXP _GpGpU_d_matern_sphere(SEXP covparmsSEXP, SEXP lonlatSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type lonlat(lonlatSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_matern_sphere(covparms, lonlat));
-    return rcpp_result_gen;
-END_RCPP
-}
-// exponential_sphere
-arma::mat exponential_sphere(arma::vec covparms, arma::mat lonlat);
-RcppExport SEXP _GpGpU_exponential_sphere(SEXP covparmsSEXP, SEXP lonlatSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type lonlat(lonlatSEXP);
-    rcpp_result_gen = Rcpp::wrap(exponential_sphere(covparms, lonlat));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_exponential_sphere
-arma::cube d_exponential_sphere(arma::vec covparms, arma::mat lonlat);
-RcppExport SEXP _GpGpU_d_exponential_sphere(SEXP covparmsSEXP, SEXP lonlatSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type lonlat(lonlatSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_exponential_sphere(covparms, lonlat));
-    return rcpp_result_gen;
-END_RCPP
-}
 // matern_spheretime
-arma::mat matern_spheretime(arma::vec covparms, arma::mat lonlattime);
+inline arma::mat matern_spheretime(arma::vec covparms, arma::mat lonlattime);
 RcppExport SEXP _GpGpU_matern_spheretime(SEXP covparmsSEXP, SEXP lonlattimeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -490,7 +308,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // d_matern_spheretime
-arma::cube d_matern_spheretime(arma::vec covparms, arma::mat lonlattime);
+inline arma::cube d_matern_spheretime(arma::vec covparms, arma::mat lonlattime);
 RcppExport SEXP _GpGpU_d_matern_spheretime(SEXP covparmsSEXP, SEXP lonlattimeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -502,7 +320,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // exponential_spheretime
-arma::mat exponential_spheretime(arma::vec covparms, arma::mat lonlattime);
+inline arma::mat exponential_spheretime(arma::vec covparms, arma::mat lonlattime);
 RcppExport SEXP _GpGpU_exponential_spheretime(SEXP covparmsSEXP, SEXP lonlattimeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -514,7 +332,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // d_exponential_spheretime
-arma::cube d_exponential_spheretime(arma::vec covparms, arma::mat lonlattime);
+inline arma::cube d_exponential_spheretime(arma::vec covparms, arma::mat lonlattime);
 RcppExport SEXP _GpGpU_d_exponential_spheretime(SEXP covparmsSEXP, SEXP lonlattimeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -522,390 +340,6 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type lonlattime(lonlattimeSEXP);
     rcpp_result_gen = Rcpp::wrap(d_exponential_spheretime(covparms, lonlattime));
-    return rcpp_result_gen;
-END_RCPP
-}
-// matern_sphere_warp
-arma::mat matern_sphere_warp(arma::vec covparms, arma::mat lonlat);
-RcppExport SEXP _GpGpU_matern_sphere_warp(SEXP covparmsSEXP, SEXP lonlatSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type lonlat(lonlatSEXP);
-    rcpp_result_gen = Rcpp::wrap(matern_sphere_warp(covparms, lonlat));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_matern_sphere_warp
-arma::cube d_matern_sphere_warp(arma::vec covparms, arma::mat lonlat);
-RcppExport SEXP _GpGpU_d_matern_sphere_warp(SEXP covparmsSEXP, SEXP lonlatSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type lonlat(lonlatSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_matern_sphere_warp(covparms, lonlat));
-    return rcpp_result_gen;
-END_RCPP
-}
-// exponential_sphere_warp
-arma::mat exponential_sphere_warp(arma::vec covparms, arma::mat lonlat);
-RcppExport SEXP _GpGpU_exponential_sphere_warp(SEXP covparmsSEXP, SEXP lonlatSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type lonlat(lonlatSEXP);
-    rcpp_result_gen = Rcpp::wrap(exponential_sphere_warp(covparms, lonlat));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_exponential_sphere_warp
-arma::cube d_exponential_sphere_warp(arma::vec covparms, arma::mat lonlat);
-RcppExport SEXP _GpGpU_d_exponential_sphere_warp(SEXP covparmsSEXP, SEXP lonlatSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type lonlat(lonlatSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_exponential_sphere_warp(covparms, lonlat));
-    return rcpp_result_gen;
-END_RCPP
-}
-// matern_spheretime_warp
-arma::mat matern_spheretime_warp(arma::vec covparms, arma::mat lonlattime);
-RcppExport SEXP _GpGpU_matern_spheretime_warp(SEXP covparmsSEXP, SEXP lonlattimeSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type lonlattime(lonlattimeSEXP);
-    rcpp_result_gen = Rcpp::wrap(matern_spheretime_warp(covparms, lonlattime));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_matern_spheretime_warp
-arma::cube d_matern_spheretime_warp(arma::vec covparms, arma::mat lonlattime);
-RcppExport SEXP _GpGpU_d_matern_spheretime_warp(SEXP covparmsSEXP, SEXP lonlattimeSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type lonlattime(lonlattimeSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_matern_spheretime_warp(covparms, lonlattime));
-    return rcpp_result_gen;
-END_RCPP
-}
-// exponential_spheretime_warp
-arma::mat exponential_spheretime_warp(arma::vec covparms, arma::mat lonlattime);
-RcppExport SEXP _GpGpU_exponential_spheretime_warp(SEXP covparmsSEXP, SEXP lonlattimeSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type lonlattime(lonlattimeSEXP);
-    rcpp_result_gen = Rcpp::wrap(exponential_spheretime_warp(covparms, lonlattime));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_exponential_spheretime_warp
-arma::cube d_exponential_spheretime_warp(arma::vec covparms, arma::mat lonlattime);
-RcppExport SEXP _GpGpU_d_exponential_spheretime_warp(SEXP covparmsSEXP, SEXP lonlattimeSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type lonlattime(lonlattimeSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_exponential_spheretime_warp(covparms, lonlattime));
-    return rcpp_result_gen;
-END_RCPP
-}
-// matern_nonstat_var
-arma::mat matern_nonstat_var(arma::vec covparms, arma::mat Z);
-RcppExport SEXP _GpGpU_matern_nonstat_var(SEXP covparmsSEXP, SEXP ZSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type Z(ZSEXP);
-    rcpp_result_gen = Rcpp::wrap(matern_nonstat_var(covparms, Z));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_matern_nonstat_var
-arma::cube d_matern_nonstat_var(arma::vec covparms, arma::mat Z);
-RcppExport SEXP _GpGpU_d_matern_nonstat_var(SEXP covparmsSEXP, SEXP ZSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type Z(ZSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_matern_nonstat_var(covparms, Z));
-    return rcpp_result_gen;
-END_RCPP
-}
-// exponential_nonstat_var
-arma::mat exponential_nonstat_var(arma::vec covparms, arma::mat Z);
-RcppExport SEXP _GpGpU_exponential_nonstat_var(SEXP covparmsSEXP, SEXP ZSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type Z(ZSEXP);
-    rcpp_result_gen = Rcpp::wrap(exponential_nonstat_var(covparms, Z));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_exponential_nonstat_var
-arma::cube d_exponential_nonstat_var(arma::vec covparms, arma::mat Z);
-RcppExport SEXP _GpGpU_d_exponential_nonstat_var(SEXP covparmsSEXP, SEXP ZSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type Z(ZSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_exponential_nonstat_var(covparms, Z));
-    return rcpp_result_gen;
-END_RCPP
-}
-// matern15_scaledim
-arma::mat matern15_scaledim(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_matern15_scaledim(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(matern15_scaledim(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_matern15_scaledim
-arma::cube d_matern15_scaledim(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_d_matern15_scaledim(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_matern15_scaledim(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// matern25_isotropic
-arma::mat matern25_isotropic(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_matern25_isotropic(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(matern25_isotropic(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_matern25_isotropic
-arma::cube d_matern25_isotropic(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_d_matern25_isotropic(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_matern25_isotropic(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// matern25_scaledim
-arma::mat matern25_scaledim(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_matern25_scaledim(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(matern25_scaledim(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_matern25_scaledim
-arma::cube d_matern25_scaledim(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_d_matern25_scaledim(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_matern25_scaledim(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// matern35_isotropic
-arma::mat matern35_isotropic(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_matern35_isotropic(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(matern35_isotropic(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_matern35_isotropic
-arma::cube d_matern35_isotropic(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_d_matern35_isotropic(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_matern35_isotropic(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// matern35_scaledim
-arma::mat matern35_scaledim(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_matern35_scaledim(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(matern35_scaledim(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_matern35_scaledim
-arma::cube d_matern35_scaledim(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_d_matern35_scaledim(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_matern35_scaledim(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// matern45_isotropic
-arma::mat matern45_isotropic(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_matern45_isotropic(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(matern45_isotropic(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_matern45_isotropic
-arma::cube d_matern45_isotropic(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_d_matern45_isotropic(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_matern45_isotropic(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// matern45_scaledim
-arma::mat matern45_scaledim(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_matern45_scaledim(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(matern45_scaledim(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_matern45_scaledim
-arma::cube d_matern45_scaledim(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_d_matern45_scaledim(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_matern45_scaledim(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// matern_categorical
-arma::mat matern_categorical(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_matern_categorical(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(matern_categorical(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_matern_categorical
-arma::cube d_matern_categorical(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_d_matern_categorical(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_matern_categorical(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// matern_spacetime_categorical
-arma::mat matern_spacetime_categorical(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_matern_spacetime_categorical(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(matern_spacetime_categorical(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_matern_spacetime_categorical
-arma::cube d_matern_spacetime_categorical(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_d_matern_spacetime_categorical(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_matern_spacetime_categorical(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// matern_spacetime_categorical_local
-arma::mat matern_spacetime_categorical_local(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_matern_spacetime_categorical_local(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(matern_spacetime_categorical_local(covparms, locs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// d_matern_spacetime_categorical_local
-arma::cube d_matern_spacetime_categorical_local(arma::vec covparms, arma::mat locs);
-RcppExport SEXP _GpGpU_d_matern_spacetime_categorical_local(SEXP covparmsSEXP, SEXP locsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type covparms(covparmsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type locs(locsSEXP);
-    rcpp_result_gen = Rcpp::wrap(d_matern_spacetime_categorical_local(covparms, locs));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -1074,30 +508,18 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_GpGpU_nearest_neighbors_gpu", (DL_FUNC) &_GpGpU_nearest_neighbors_gpu, 2},
     {"_GpGpU_nearest_neighbors_sing_gpu", (DL_FUNC) &_GpGpU_nearest_neighbors_sing_gpu, 3},
-    {"_GpGpU_vecchia_Linv_gpu_isotropic_exponential", (DL_FUNC) &_GpGpU_vecchia_Linv_gpu_isotropic_exponential, 3},
+    {"_GpGpU_vecchia_Linv_gpu", (DL_FUNC) &_GpGpU_vecchia_Linv_gpu, 4},
     {"_GpGpU_vecchia_Linv_gpu_isotropic_exponential_batched", (DL_FUNC) &_GpGpU_vecchia_Linv_gpu_isotropic_exponential_batched, 3},
-    {"_GpGpU_vecchia_profbeta_loglik_grad_info_gpu", (DL_FUNC) &_GpGpU_vecchia_profbeta_loglik_grad_info_gpu, 5},
-    {"_GpGpU_vecchia_profbeta_loglik_gpu", (DL_FUNC) &_GpGpU_vecchia_profbeta_loglik_gpu, 5},
+    {"_GpGpU_vecchia_profbeta_loglik_grad_info_gpu", (DL_FUNC) &_GpGpU_vecchia_profbeta_loglik_grad_info_gpu, 6},
+    {"_GpGpU_vecchia_profbeta_loglik_gpu", (DL_FUNC) &_GpGpU_vecchia_profbeta_loglik_gpu, 6},
+    {"_GpGpU_fisher_scoring_gpu", (DL_FUNC) &_GpGpU_fisher_scoring_gpu, 9},
     {"_GpGpU_Linv_mult_gpu", (DL_FUNC) &_GpGpU_Linv_mult_gpu, 3},
-    {"_GpGpU_sph_grad_xyz", (DL_FUNC) &_GpGpU_sph_grad_xyz, 2},
     {"_GpGpU_exponential_isotropic", (DL_FUNC) &_GpGpU_exponential_isotropic, 2},
     {"_GpGpU_d_exponential_isotropic", (DL_FUNC) &_GpGpU_d_exponential_isotropic, 2},
     {"_GpGpU_matern_isotropic", (DL_FUNC) &_GpGpU_matern_isotropic, 2},
     {"_GpGpU_d_matern_isotropic", (DL_FUNC) &_GpGpU_d_matern_isotropic, 2},
     {"_GpGpU_matern15_isotropic", (DL_FUNC) &_GpGpU_matern15_isotropic, 2},
     {"_GpGpU_d_matern15_isotropic", (DL_FUNC) &_GpGpU_d_matern15_isotropic, 2},
-    {"_GpGpU_matern_anisotropic2D", (DL_FUNC) &_GpGpU_matern_anisotropic2D, 2},
-    {"_GpGpU_d_matern_anisotropic2D", (DL_FUNC) &_GpGpU_d_matern_anisotropic2D, 2},
-    {"_GpGpU_matern_anisotropic3D", (DL_FUNC) &_GpGpU_matern_anisotropic3D, 2},
-    {"_GpGpU_d_matern_anisotropic3D", (DL_FUNC) &_GpGpU_d_matern_anisotropic3D, 2},
-    {"_GpGpU_matern_anisotropic3D_alt", (DL_FUNC) &_GpGpU_matern_anisotropic3D_alt, 2},
-    {"_GpGpU_d_matern_anisotropic3D_alt", (DL_FUNC) &_GpGpU_d_matern_anisotropic3D_alt, 2},
-    {"_GpGpU_exponential_anisotropic2D", (DL_FUNC) &_GpGpU_exponential_anisotropic2D, 2},
-    {"_GpGpU_d_exponential_anisotropic2D", (DL_FUNC) &_GpGpU_d_exponential_anisotropic2D, 2},
-    {"_GpGpU_exponential_anisotropic3D", (DL_FUNC) &_GpGpU_exponential_anisotropic3D, 2},
-    {"_GpGpU_d_exponential_anisotropic3D", (DL_FUNC) &_GpGpU_d_exponential_anisotropic3D, 2},
-    {"_GpGpU_exponential_anisotropic3D_alt", (DL_FUNC) &_GpGpU_exponential_anisotropic3D_alt, 2},
-    {"_GpGpU_d_exponential_anisotropic3D_alt", (DL_FUNC) &_GpGpU_d_exponential_anisotropic3D_alt, 2},
     {"_GpGpU_matern_scaledim", (DL_FUNC) &_GpGpU_matern_scaledim, 2},
     {"_GpGpU_d_matern_scaledim", (DL_FUNC) &_GpGpU_d_matern_scaledim, 2},
     {"_GpGpU_exponential_scaledim", (DL_FUNC) &_GpGpU_exponential_scaledim, 2},
@@ -1106,46 +528,10 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GpGpU_d_matern_spacetime", (DL_FUNC) &_GpGpU_d_matern_spacetime, 2},
     {"_GpGpU_exponential_spacetime", (DL_FUNC) &_GpGpU_exponential_spacetime, 2},
     {"_GpGpU_d_exponential_spacetime", (DL_FUNC) &_GpGpU_d_exponential_spacetime, 2},
-    {"_GpGpU_matern_sphere", (DL_FUNC) &_GpGpU_matern_sphere, 2},
-    {"_GpGpU_d_matern_sphere", (DL_FUNC) &_GpGpU_d_matern_sphere, 2},
-    {"_GpGpU_exponential_sphere", (DL_FUNC) &_GpGpU_exponential_sphere, 2},
-    {"_GpGpU_d_exponential_sphere", (DL_FUNC) &_GpGpU_d_exponential_sphere, 2},
     {"_GpGpU_matern_spheretime", (DL_FUNC) &_GpGpU_matern_spheretime, 2},
     {"_GpGpU_d_matern_spheretime", (DL_FUNC) &_GpGpU_d_matern_spheretime, 2},
     {"_GpGpU_exponential_spheretime", (DL_FUNC) &_GpGpU_exponential_spheretime, 2},
     {"_GpGpU_d_exponential_spheretime", (DL_FUNC) &_GpGpU_d_exponential_spheretime, 2},
-    {"_GpGpU_matern_sphere_warp", (DL_FUNC) &_GpGpU_matern_sphere_warp, 2},
-    {"_GpGpU_d_matern_sphere_warp", (DL_FUNC) &_GpGpU_d_matern_sphere_warp, 2},
-    {"_GpGpU_exponential_sphere_warp", (DL_FUNC) &_GpGpU_exponential_sphere_warp, 2},
-    {"_GpGpU_d_exponential_sphere_warp", (DL_FUNC) &_GpGpU_d_exponential_sphere_warp, 2},
-    {"_GpGpU_matern_spheretime_warp", (DL_FUNC) &_GpGpU_matern_spheretime_warp, 2},
-    {"_GpGpU_d_matern_spheretime_warp", (DL_FUNC) &_GpGpU_d_matern_spheretime_warp, 2},
-    {"_GpGpU_exponential_spheretime_warp", (DL_FUNC) &_GpGpU_exponential_spheretime_warp, 2},
-    {"_GpGpU_d_exponential_spheretime_warp", (DL_FUNC) &_GpGpU_d_exponential_spheretime_warp, 2},
-    {"_GpGpU_matern_nonstat_var", (DL_FUNC) &_GpGpU_matern_nonstat_var, 2},
-    {"_GpGpU_d_matern_nonstat_var", (DL_FUNC) &_GpGpU_d_matern_nonstat_var, 2},
-    {"_GpGpU_exponential_nonstat_var", (DL_FUNC) &_GpGpU_exponential_nonstat_var, 2},
-    {"_GpGpU_d_exponential_nonstat_var", (DL_FUNC) &_GpGpU_d_exponential_nonstat_var, 2},
-    {"_GpGpU_matern15_scaledim", (DL_FUNC) &_GpGpU_matern15_scaledim, 2},
-    {"_GpGpU_d_matern15_scaledim", (DL_FUNC) &_GpGpU_d_matern15_scaledim, 2},
-    {"_GpGpU_matern25_isotropic", (DL_FUNC) &_GpGpU_matern25_isotropic, 2},
-    {"_GpGpU_d_matern25_isotropic", (DL_FUNC) &_GpGpU_d_matern25_isotropic, 2},
-    {"_GpGpU_matern25_scaledim", (DL_FUNC) &_GpGpU_matern25_scaledim, 2},
-    {"_GpGpU_d_matern25_scaledim", (DL_FUNC) &_GpGpU_d_matern25_scaledim, 2},
-    {"_GpGpU_matern35_isotropic", (DL_FUNC) &_GpGpU_matern35_isotropic, 2},
-    {"_GpGpU_d_matern35_isotropic", (DL_FUNC) &_GpGpU_d_matern35_isotropic, 2},
-    {"_GpGpU_matern35_scaledim", (DL_FUNC) &_GpGpU_matern35_scaledim, 2},
-    {"_GpGpU_d_matern35_scaledim", (DL_FUNC) &_GpGpU_d_matern35_scaledim, 2},
-    {"_GpGpU_matern45_isotropic", (DL_FUNC) &_GpGpU_matern45_isotropic, 2},
-    {"_GpGpU_d_matern45_isotropic", (DL_FUNC) &_GpGpU_d_matern45_isotropic, 2},
-    {"_GpGpU_matern45_scaledim", (DL_FUNC) &_GpGpU_matern45_scaledim, 2},
-    {"_GpGpU_d_matern45_scaledim", (DL_FUNC) &_GpGpU_d_matern45_scaledim, 2},
-    {"_GpGpU_matern_categorical", (DL_FUNC) &_GpGpU_matern_categorical, 2},
-    {"_GpGpU_d_matern_categorical", (DL_FUNC) &_GpGpU_d_matern_categorical, 2},
-    {"_GpGpU_matern_spacetime_categorical", (DL_FUNC) &_GpGpU_matern_spacetime_categorical, 2},
-    {"_GpGpU_d_matern_spacetime_categorical", (DL_FUNC) &_GpGpU_d_matern_spacetime_categorical, 2},
-    {"_GpGpU_matern_spacetime_categorical_local", (DL_FUNC) &_GpGpU_matern_spacetime_categorical_local, 2},
-    {"_GpGpU_d_matern_spacetime_categorical_local", (DL_FUNC) &_GpGpU_d_matern_spacetime_categorical_local, 2},
     {"_GpGpU_Linv_mult", (DL_FUNC) &_GpGpU_Linv_mult, 3},
     {"_GpGpU_L_mult", (DL_FUNC) &_GpGpU_L_mult, 3},
     {"_GpGpU_Linv_t_mult", (DL_FUNC) &_GpGpU_Linv_t_mult, 3},

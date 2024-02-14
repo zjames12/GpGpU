@@ -97,8 +97,12 @@
 fit_model <- function(y, locs, X = NULL, covfun_name = "matern_isotropic",
     NNarray = NULL, start_parms = NULL, reorder = TRUE, group = TRUE,
     m_seq = c(10,30), max_iter = 40, fixed_parms = NULL,
-    silent = FALSE, st_scale = NULL, convtol = 1e-4, gpu = FALSE, prt = FALSE){
-	if (gpu && !covfun_name %in% c("exponential_isotropic")){
+    silent = FALSE, st_scale = NULL, convtol = 1e-4, gpu = FALSE){
+	if (gpu && !covfun_name %in% 
+    c("exponential_isotropic",
+    "exponential_scaledim",
+    "exponential_spacetime",
+    "exponential_spheretime")){
 		stop("covariance function not supported on gpu.")
 	} else if (gpu && group) {
 		stop("group calculation not supported on gpu")
@@ -299,7 +303,7 @@ fit_model <- function(y, locs, X = NULL, covfun_name = "matern_isotropic",
                 lp[!active] <- invlink_startparms[!active]
                 
                 likobj <- vecchia_profbeta_loglik_grad_info_gpu(
-                    link(lp),yord,Xord,locsord,NNarray[,1:(m+1)])
+                    link(lp),covfun_name,yord,Xord,locsord,NNarray[,1:(m+1)])
                 likobj$loglik <- -likobj$loglik - pen(link(lp))
                 likobj$grad <- -c(likobj$grad)*dlink(lp) -
                     dpen(link(lp))*dlink(lp)
@@ -331,15 +335,8 @@ fit_model <- function(y, locs, X = NULL, covfun_name = "matern_isotropic",
                 return(likobj)
             }
         }
-        if (gpu & !prt) {
-            fitlm <- stats::lm(yord ~ Xord - 1 )
-            vv <- summary(fitlm)$sigma^2
-            fit <- fisher_scoring_gpu( invlink(start_parms)[active],
-            yord, Xord, locsord, NNarray[,1:(m+1)], vv, silent=silent, convtol = convtol, max_iter = max_iter )
-        } else {
-            fit <- fisher_scoring( likfun,invlink(start_parms)[active],
+        fit <- fisher_scoring( likfun,invlink(start_parms)[active],
                 link,silent=silent, convtol = convtol, max_iter = max_iter )
-        }
         invlink_startparms[active] <- fit$logparms
         #start_parms[active] <- fit$covparms
         start_parms <- link(invlink_startparms)

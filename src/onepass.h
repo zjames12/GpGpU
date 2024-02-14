@@ -217,15 +217,21 @@ void compute_pieces(
         
         // compute covariance matrix and derivatives and take cholesky
         arma::mat covmat = p_covfun[0]( covparms, locsub );	
-	
         arma::cube dcovmat;
         if(grad_info){ 
             dcovmat = p_d_covfun[0]( covparms, locsub ); 
         }
-		
+		// if (i == 100) {
+        //     covparms.print();
+        //     locsub.print();
+        //     covmat.print();
+        // }
         arma::mat cholmat = eye( size(covmat) );
         chol( cholmat, covmat, "lower" );
-        
+        // if (i == 50) {
+        //     covparms.print();
+        //     covmat.print();
+        // }
         // i1 is conditioning set, i2 is response        
         //arma::span i1 = span(0,bsize-2);
         arma::span i2 = span(bsize-1,bsize-1);
@@ -255,11 +261,23 @@ void compute_pieces(
         // loglik objects
         l_logdet += 2.0*std::log( as_scalar(cholmat(i2,i2)) ); 
         l_ySy +=    pow( as_scalar(Liy0(i2)), 2 );
+        // if (i > -1) {
+        //     printf("%i, %f\n", i, pow( as_scalar(Liy0(i2)), 2 ));
+        // }
+        
         if(profbeta){
             l_XSX +=   LiX0.rows(i2).t() * LiX0.rows(i2);
             l_ySX += ( Liy0(i2) * LiX0.rows(i2) ).t();
         }
-        
+        if (i == 100) {
+            // printf("%f\n", 2.0*std::log( as_scalar(cholmat(i2,i2))));
+            // printf("%f\n", pow( as_scalar(Liy0(i2)), 2 ));
+            // cholmat.print();
+            // X0.print();
+            // LiX0.print();
+            // l_XSX.print();
+            // Liy0.print();
+        }
         if( grad_info ){
         // gradient objects
         // LidSLi3 is last column of Li * (dS_j) * Lit for 1 parameter i
@@ -628,7 +646,24 @@ void synthesize(
         &XSX, &ySX, &ySy, &logdet, &dXSX, &dySX, &dySy, &dlogdet, &ainfo,
         profbeta, grad_info
     );
-        
+    // printf("XSX\n");
+    // XSX.print();
+    // printf("ySX\n");
+    // ySX.print();
+    // printf("ySy: %f\n", ySy);
+    // // ySyl.print();
+    // printf("logdet: %f\n", logdet);
+    // // logdetl.print();
+    // printf("dXSX\n");
+    // dXSX.print();
+    // printf("dySX\n");
+    // dySX.print();
+    // printf("dySy\n");
+    // dySy.print();
+    // printf("dlogdet\n");
+    // dlogdet.print();
+    // printf("ainfo\n");
+    // ainfo.print();
     // synthesize everything and update loglik, grad, beta, betainfo, info
     
     // betahat and dbeta
