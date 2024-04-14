@@ -1,7 +1,7 @@
 // #include <Rcpp.h>
 #include <RcppArmadillo.h>
 //[[Rcpp::depends(RcppArmadillo)]]
-
+#include <chrono>
 using namespace Rcpp;
 using namespace arma;
 
@@ -18,7 +18,8 @@ double* vecchia_Linv_gpu_outer(
     int n,
     int m,
     int dim,
-    int nparms);
+    int nparms,
+    int start_ind);
 
 extern "C"
 float* vecchia_Linv_gpu_outer_single(
@@ -112,7 +113,8 @@ arma::mat vecchia_Linv_gpu(
     arma::vec covparms,
     StringVector covfun_name,
     arma::mat locs,
-    arma::mat NNarray) {
+    arma::mat NNarray,
+    int start_ind) {
     
     short covfun_name_index = 0;
     std::string covfun_name_string;
@@ -157,7 +159,7 @@ arma::mat vecchia_Linv_gpu(
     //     }
     // }
 
-    double* Linvl = vecchia_Linv_gpu_outer(covparmsl, covfun_name_index, locsl, NNarrayl, n, m, dim, nparms);
+    double* Linvl = vecchia_Linv_gpu_outer(covparmsl, covfun_name_index, locsl, NNarrayl, n, m, dim, nparms, start_ind);
 
     // NumericMatrix Linv( n , m );
     // arma::mat Linv = arma::mat(n, m);
@@ -277,6 +279,32 @@ arma::mat vecchia_Linv_gpu_isotropic_exponential_batched(
 
 extern "C"
 void call_compute_pieces_gpu(
+    double* covparms,
+    const short covfun_name,
+    double* locs,
+    double* NNarray,
+    double* y,
+    double* X,
+    double* XSX,
+    double* ySX,
+    double* ySy,
+    double* logdet,
+    double* dXSX,
+    double* dySX,
+    double* dySy,
+    double* dlogdet,
+    double* ainfo,
+    int profbeta,
+    int grad_info,
+    int n,
+    int m,
+    int p,
+    int nparms,
+    int dim
+);
+
+extern "C"
+void call_compute_pieces_gpu_batched(
     double* covparms,
     const short covfun_name,
     double* locs,
@@ -706,6 +734,7 @@ void likelihood(
     bool profbeta,
     bool grad_info
 ) {
+    
     short covfun_name_index = 0;
     std::string covfun_name_string;
     covfun_name_string = covfun_name[0];
@@ -724,6 +753,7 @@ void likelihood(
     int p = X.ncol();
     int nparms = covparms.length();
     int dim = locs.ncol();
+    // int dim = locs.n_cols;
 
     double* covparmsl = (double*)malloc(sizeof(double) * nparms);
     // covparmsl[0] = covparms[0];
@@ -734,26 +764,38 @@ void likelihood(
     }
     
     double* locsl = (double*)malloc(sizeof(double) * n * dim);
+    
+    // locs = locs.t();
+    // double* locsl = locs.memptr();
     double* NNarrayl = (double*) calloc(n * m, sizeof(double));//malloc(sizeof(double) * n * m);
     double* yl = (double*)malloc(sizeof(double) * n);
     double* Xl = (double*)malloc(sizeof(double) * n * p);
     
     for (int i = 0; i < n; i++) {
         yl[i] = y[i];
-        for (int j = 0; j < m; j++) {
+        for (int j = 0; j < std::max(m, std::max(p, dim)); j++) {
             if (j < dim) {
                 locsl[i * dim + j] = locs(i, j);
             }
             if (j < p) {
                 Xl[i * p + j] = X(i, j);
             }
-            if (j <= i){
+            if (j <= i && j < m){
                 NNarrayl[i * m + j] = NNarray(i, j);
             }
         }
     }
+    // arma::mat locsm = locs;
+    // locsm = locsm.t();
 
-
+    // printf("\n");
+    // for (int j = 0; j < dim; j++) {
+    //     printf("%f ", locs(524, j));
+    // }
+    // printf("\n");
+    // for (int j = 0; j < dim; j++) {
+    //     printf("%f ", locsl[524 * dim + j]);
+    // }
     double* XSXf = (double*)calloc(p * p, sizeof(double));
     double* ySXf = (double*)calloc(p * p, sizeof(double));
     double ySy = 0;
@@ -764,16 +806,20 @@ void likelihood(
     double* dySyf = (double*)calloc(nparms, sizeof(double));
     double* dlogdetf = (double*)calloc(nparms, sizeof(double));
     double* ainfof = (double*)calloc(nparms * nparms, sizeof(double));
-
-    call_compute_pieces_gpu(covparmsl, covfun_name_index, locsl, NNarrayl, yl, Xl,
+    printf("call_compute_pieces_gpu_batched\n");
+    // std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    // call_compute_pieces_gpu(covparmsl, covfun_name_index, locsl, NNarrayl, yl, Xl,
+    //     XSXf, ySXf, &ySy, &logdet,
+    //     dXSXf, dySXf, dySyf, dlogdetf, ainfof, profbeta, grad_info, n, m, p, nparms, dim);
+    call_compute_pieces_gpu_batched(covparmsl, covfun_name_index, locsl, NNarrayl, yl, Xl,
         XSXf, ySXf, &ySy, &logdet,
         dXSXf, dySXf, dySyf, dlogdetf, ainfof, profbeta, grad_info, n, m, p, nparms, dim);
+    // std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    // std::cout << "Iteration time = " <<  (std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()) /1000000.0  <<std::endl;
 
-    // printf("XSXf %f\n", XSXf[0]);
     arma::mat XSX = arma::mat(&XSXf[0], p, p);
     arma::vec ySX = arma::vec(&ySXf[0], p);
     arma::mat dySX = arma::mat(&dySXf[0], nparms, p);
-    
     // arma::cube dXSX = arma::cube(&dXSXf[0], p, p, nparms);
     arma::cube dXSX(p, p, nparms, fill::zeros);
     for(int j=0; j<nparms; j++){
@@ -826,11 +872,11 @@ void likelihood(
     double logdetl = 0;
 
     arma::vec covparms_c = arma::vec(covparms.begin(),covparms.length());
-    arma::mat locs_c = arma::mat(locs.begin(), locs.nrow(), locs.ncol());
+    arma::mat locs_c = arma::mat(locs.begin(), locs.nrow(), locs.ncol());//locsm; 
     arma::mat NNarray_c = arma::mat(NNarray.begin(), NNarray.nrow(), NNarray.ncol());
     arma::vec y_c = arma::vec(y.begin(),y.length());
     arma::mat X_c = arma::mat(X.begin(),X.nrow(),X.ncol());
-
+    // std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     // printf("covparms_c\n");
     // covparms_c.print();
     // printf("locs_c\n");
@@ -841,11 +887,9 @@ void likelihood(
     // y_c.print();
     // printf("X_c\n");
     // X_c.print();
-
     compute_pieces2(covparms_c, covfun_name, locs_c, NNarray_c, y_c, X_c, 
         &XSXl, &ySXl, &ySyl, &logdetl, &dXSXl, &dySXl, &dySyl,
         &dlogdetl, &ainfol, profbeta, grad_info);
-
     XSX += XSXl;
     ySX += ySXl;
     ySy += ySyl;
@@ -882,14 +926,11 @@ void likelihood(
     // NumericMatrix betainfo( X.ncol(), X.ncol() );
     
     // synthesize everything and update loglik, grad, beta, betainfo, info
-    
     // betahat and dbeta
     arma::vec abeta = arma::vec( p, fill::zeros );
-    // XSX.print();
     if(profbeta){ abeta = solve( XSX, ySX ); }
     
     for(int j=0; j<p; j++){ (*betahat)(j) = abeta(j); };
-    
     arma::mat dbeta = arma::mat(p,nparms, fill::zeros);
     
     if( profbeta && grad_info){
@@ -902,7 +943,6 @@ void likelihood(
         as_scalar( abeta.t() * XSX * abeta ) )/n;
     // loglikelihood
     (*ll)(0) = -0.5*( n*std::log(2.0*M_PI) + logdet + n*sig2 ); 
-    
     if(profbeta){
     // betainfo
     for(int i=0; i<p; i++){ for(int j=0; j<i+1; j++){
@@ -936,14 +976,14 @@ void likelihood(
     // dbeta.print();
     // printf("dXSX\n");
     // dXSX.print();
-
     // fisher information
     for(int i=0; i<nparms; i++){ for(int j=0; j<i+1; j++){
         (*info)(i,j) = ainfo(i,j);
         (*info)(j,i) = (*info)(i,j);
     }}
     }
-    
+    // std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    // std::cout << "Time difference (sec) = " <<  (std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()) /1000000.0  <<std::endl;
 
 }
 
@@ -953,7 +993,7 @@ List vecchia_profbeta_loglik_grad_info_gpu(
     StringVector covfun_name,
     NumericVector y,
     NumericMatrix X,
-    const NumericMatrix locs,
+    NumericMatrix locs,
     NumericMatrix NNarray ){
     
     NumericVector ll(1);
@@ -980,7 +1020,7 @@ List vecchia_profbeta_loglik_gpu(
     StringVector covfun_name,
     NumericVector y,
     NumericMatrix X,
-    const NumericMatrix locs,
+    NumericMatrix locs,
     NumericMatrix NNarray ){
     
     NumericVector ll(1);
@@ -1006,10 +1046,11 @@ List vecchia_meanzero_loglik_gpu(
     NumericVector covparms, 
     StringVector covfun_name,
     NumericVector y,
-    NumericMatrix X,
-    const NumericMatrix locs,
+    NumericMatrix X1,
+    NumericMatrix locs,
     NumericMatrix NNarray ){
     
+    NumericMatrix X(1,1);
     NumericVector ll(1);
     NumericVector grad( covparms.length() );
     NumericVector betahat( X.ncol() );
@@ -1019,11 +1060,10 @@ List vecchia_meanzero_loglik_gpu(
     // this function calls arma_onepass_compute_pieces
     // then synthesizes the result into loglik, beta, grad, info, betainfo
     likelihood(covparms, covfun_name, locs, NNarray, y, X,
-        &ll, &betahat, &grad, &info, &betainfo, true, false 
+        &ll, &betahat, &grad, &info, &betainfo, false, false 
     );
     
-    List ret = List::create( Named("loglik") = ll, Named("betahat") = betahat,
-        Named("betainfo") = betainfo );
+    List ret = List::create( Named("loglik") = ll);
     return ret;
         
 }

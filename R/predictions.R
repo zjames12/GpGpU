@@ -33,21 +33,20 @@
 predictions <- function(fit = NULL, locs_pred, X_pred, 
     y_obs = fit$y, locs_obs = fit$locs, X_obs = fit$X, beta = fit$betahat,    
     covparms = fit$covparms, covfun_name = fit$covfun_name, 
-    m = 60, reorder = TRUE, st_scale = NULL){
-    
+    m = 60, reorder = TRUE, st_scale = NULL, gpu = FALSE){
     n_obs <- nrow(locs_obs)
     n_pred <- nrow(locs_pred)
     
     # get orderings
     if(reorder){
 
-        if( n_obs < 6e4 ){
+        if( n_obs < 6e2 ){
             ord1 <- order_maxmin(locs_obs)
         } else {
             ord1 <- sample( 1:n_obs )
         }
         
-        if( n_pred < 6e4 ){
+        if( n_pred < 6e2 ){
             ord2 <- order_maxmin(locs_pred)
         } else {
             ord2 <- sample( 1:n_pred )
@@ -81,20 +80,27 @@ predictions <- function(fit = NULL, locs_pred, X_pred,
     } else {
         dd <- ncol(locs_all)
     }
+    
     #NNarray_all <- find_ordered_nn(locs_all[,1:dd,drop=FALSE],m=m,lonlat = lonlat)
     NNarray_all <- find_ordered_nn(locs_all,m=m, lonlat = lonlat,st_scale=st_scale)
-    
+
     # get entries of Linv for obs locations and pred locations
-    Linv_all <- vecchia_Linv(covparms,covfun_name,locs_all, NNarray_all, n_obs+1)
-    
+    if (gpu) {
+        Linv_all <- vecchia_Linv_gpu(covparms,covfun_name,locs_all, NNarray_all, n_obs+1)
+        Linv_all[1:n_obs,1:(m+1)] <- 0.0
+    } else {
+        Linv_all <- vecchia_Linv(covparms,covfun_name,locs_all, NNarray_all, n_obs+1)
+    }
+
     y_withzeros <- c(yord_obs - c(Xord_obs %*% beta), rep(0,n_pred) )
     v1 <- Linv_mult(Linv_all, y_withzeros, NNarray_all )
     v1[inds1] <- 0
     Linv_all[1:n_obs,1] <- 1.0
     v2 <- -L_mult(Linv_all,v1,NNarray_all)
-
+    
     condexp <- c(v2[inds2] + Xord_pred %*% beta)
     condexp[ord2] <- condexp
+
     return(condexp)
 }
 

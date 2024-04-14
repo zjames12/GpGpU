@@ -1,9 +1,12 @@
 #PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) $(SHLIB_OPENMP_CXXFLAGS)
 PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS)
-PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) $(SHLIB_OPENMP_CXXFLAGS) -L /usr/local/cuda-11.2/targets/x86_64-linux/lib -Wl,-rpath, /usr/local/cuda-11.2/targets/x86_64-linux/lib/libcudart.so
+PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) $(SHLIB_OPENMP_CXXFLAGS) 
+PKG_LIBS += -L /home/zj37/.conda/envs/r_env/lib -Wl,-rpath, /home/zj37/.conda/envs/r_env/lib/libcudart.so
+PKG_LIBS += -L /home/zj37/.conda/envs/r_env/lib -Wl,-rpath, /home/zj37/.conda/envs/r_env/lib/libcublas.so
+PKG_LIBS += -L /home/zj37/.conda/envs/r_env/lib -Wl,-rpath, /home/zj37/.conda/envs/r_env/lib/libcusolver.so.11
 PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS)
 # CUDA_HOME = "/mnt/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.0"
-CUDA_HOME = /usr/local/cuda-11.2
+CUDA_HOME = /home/zj37/.conda/envs/r_env#/usr/local/cuda-11.2
 # R_HOME = ~/.conda/envs/r_env/lib/R/bin
 CXX = /usr/bin/g++
 
@@ -19,10 +22,10 @@ RCPP_ARMA_INC = "/home/zj37/.conda/envs/r_env/lib/R/library/RcppArmadillo/includ
 RCPP_INC = "/home/zj37/.conda/envs/r_env/lib/R/library/Rcpp/include"
 BH_INC =  "/home/zj37/.conda/envs/r_env/lib/R/library/BH/include"
 NVCC = $(CUDA_HOME)/bin/nvcc
-CUDA_INC = $(CUDA_HOME)/targets/x86_64-linux/lib
+CUDA_INC = $(CUDA_HOME)/lib#$(CUDA_HOME)/targets/x86_64-linux/lib
 
-LIBS = -lcudart
-NVCC_FLAGS = -m64 -I$(R_INC)
+LIBS = -lcudart -lcusolver
+NVCC_FLAGS = -lcudart -lcusolver -m64 -I$(R_INC)
 
 ### Define objects
 cu_sources := $(wildcard *.cu)

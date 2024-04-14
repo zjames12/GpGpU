@@ -80,16 +80,22 @@ __device__ void exponential_scaledim(double* covparms, double* locsub, double* c
                 d += temp * temp;
             }
             d = sqrt(d);
-            if (d == 0.0) {
-                covmat[i2 * m + i1] = covparms[0];
+            // if (d == 0.0) {
+            //     covmat[i2 * m + i1] = covparms[0];
+            // } else {
+            //     covmat[i2 * m + i1] = covparms[0] * exp(-d);
+            // }
+            if (i1 == i2) {
+                covmat[i2 * m + i2] = covparms[0] + covparms[0] * covparms[dim + 1];
             } else {
                 covmat[i2 * m + i1] = covparms[0] * exp(-d);
-            }
-            if (i1 == i2) {
-                covmat[i2 * m + i2] += covparms[0] * covparms[dim + 1];
-            } else {
                 covmat[i1 * m + i2] = covmat[i2 * m + i1];
             }
+
+            // if (covparms[0] == 1){
+            //     covmat[i2 * m + i1] = exp(-d);
+            //     covmat[i1 * m + i2] = covmat[i2 * m + i1];
+            // }
 
             // // calculate covariance
             // if (i1 == i2) {
