@@ -83,7 +83,7 @@ fisher_scoring <- function( likfun, start_parms, link,
         cat(as.character(round(-grad,3)))
         cat("\n\n")
     }
-    
+    t <- proc.time()
     for(j in 1:max_iter){
         likobj0 <- likobj
         # cat(paste0(round(likobj$loglik,6), "  \n"))

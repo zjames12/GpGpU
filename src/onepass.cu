@@ -1129,7 +1129,15 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
             }
         }
     }
-
+    if (i == 999) {
+        for (int j = 0; j < m; j++) {
+            for (int k = 0; k < p; k++) {
+                printf("%f ", X0[j * p + k]);
+            }
+            printf("\n");
+        }
+        printf("\n");
+    }
     double covmat[M * M];
     for (int j = 0; j < M*M; j++) {
         covmat[j] = 0;
@@ -1256,7 +1264,15 @@ __global__ void compute_pieces(double* y, double* X, double* NNarray, double* lo
             }
         }
     }
-
+    // if (i == 999) {
+    //     for (int j = 0; j < m; j++) {
+    //         for (int k = 0; k < p; k++) {
+    //             printf("%f ", LiX0[j * p + k]);
+    //         }
+    //         printf("\n");
+    //     }
+    //     printf("\n");
+    // }
     //arma::vec Liy0 = solve( trimatl(cholmat), ysub );
     //double* Liy0 = forward_solve(cholmat, ysub, m);
     //double* Liy0 = (double*)malloc(sizeof(double) * m);
@@ -1985,46 +2001,12 @@ void call_compute_pieces_gpu(
     gpuErrchk(cudaMemcpy(d_X, X, sizeof(double) * n * p, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_covparms, covparms, sizeof(double) * nparms, cudaMemcpyHostToDevice));
     
-    // int block_size = 64;
-    // int grid_size = ((n + block_size) / block_size);
-    // std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    // if (dim <= 4) {
-    //     if (m <= 31) {
-    //         compute_pieces<31, 4><<<grid_size, block_size>>> (d_y, d_X, d_NNarray, d_locs,
-    //             d_logdet, d_ySy, d_XSX, d_ySX,
-    //             d_dXSX, d_dySX, d_dySy, d_dlogdet, d_ainfo,
-    //             d_covparms, covfun_name,
-    //             n, p, m, dim, nparms,
-    //             profbeta, grad_info);
-    //         gpuErrchk(cudaPeekAtLastError());
-    //         gpuErrchk(cudaDeviceSynchronize());
-    //     } else if (m <= 61) {
-    //         compute_pieces<61, 4><<<grid_size, block_size>>> (d_y, d_X, d_NNarray, d_locs,
-    //             d_logdet, d_ySy, d_XSX, d_ySX,
-    //             d_dXSX, d_dySX, d_dySy, d_dlogdet, d_ainfo,
-    //             d_covparms, covfun_name,
-    //             n, p, m, dim, nparms,
-    //             profbeta, grad_info);
-    //         gpuErrchk(cudaPeekAtLastError());
-    //         gpuErrchk(cudaDeviceSynchronize());
-    //     } else if (m <= 91) {
-    //         compute_pieces<91, 4><<<grid_size, block_size>>> (d_y, d_X, d_NNarray, d_locs,
-    //             d_logdet, d_ySy, d_XSX, d_ySX,
-    //             d_dXSX, d_dySX, d_dySy, d_dlogdet, d_ainfo,
-    //             d_covparms, covfun_name,
-    //             n, p, m, dim, nparms,
-    //             profbeta, grad_info);
-    //         gpuErrchk(cudaPeekAtLastError());
-    //         gpuErrchk(cudaDeviceSynchronize());
-    //     }
-    // }
-
-    int grid_size = n;
-    // dim3 block_size = dim3(m, m);
-
+    int block_size = 64;
+    int grid_size = ((n + block_size) / block_size);
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     if (dim <= 4) {
         if (m <= 31) {
-            compute_pieces_blocks<31, 4, 3><<<grid_size, dim3(m, m)>>> (d_y, d_X, d_NNarray, d_locs,
+            compute_pieces<31, 4><<<grid_size, block_size>>> (d_y, d_X, d_NNarray, d_locs,
                 d_logdet, d_ySy, d_XSX, d_ySX,
                 d_dXSX, d_dySX, d_dySy, d_dlogdet, d_ainfo,
                 d_covparms, covfun_name,
@@ -2033,25 +2015,59 @@ void call_compute_pieces_gpu(
             gpuErrchk(cudaPeekAtLastError());
             gpuErrchk(cudaDeviceSynchronize());
         } else if (m <= 61) {
-            // compute_pieces_blocks<61, 4><<<grid_size, dim3(m, m)>>> (d_y, d_X, d_NNarray, d_locs,
-            //     d_logdet, d_ySy, d_XSX, d_ySX,
-            //     d_dXSX, d_dySX, d_dySy, d_dlogdet, d_ainfo,
-            //     d_covparms, covfun_name,
-            //     n, p, m, dim, nparms,
-            //     profbeta, grad_info);
-            // gpuErrchk(cudaPeekAtLastError());
-            // gpuErrchk(cudaDeviceSynchronize());
+            compute_pieces<61, 4><<<grid_size, block_size>>> (d_y, d_X, d_NNarray, d_locs,
+                d_logdet, d_ySy, d_XSX, d_ySX,
+                d_dXSX, d_dySX, d_dySy, d_dlogdet, d_ainfo,
+                d_covparms, covfun_name,
+                n, p, m, dim, nparms,
+                profbeta, grad_info);
+            gpuErrchk(cudaPeekAtLastError());
+            gpuErrchk(cudaDeviceSynchronize());
         } else if (m <= 91) {
-            // compute_pieces_blocks<91, 4><<<grid_size, dim3(m, m)>>> (d_y, d_X, d_NNarray, d_locs,
-            //     d_logdet, d_ySy, d_XSX, d_ySX,
-            //     d_dXSX, d_dySX, d_dySy, d_dlogdet, d_ainfo,
-            //     d_covparms, covfun_name,
-            //     n, p, m, dim, nparms,
-            //     profbeta, grad_info);
-            // gpuErrchk(cudaPeekAtLastError());
-            // gpuErrchk(cudaDeviceSynchronize());
+            compute_pieces<91, 4><<<grid_size, block_size>>> (d_y, d_X, d_NNarray, d_locs,
+                d_logdet, d_ySy, d_XSX, d_ySX,
+                d_dXSX, d_dySX, d_dySy, d_dlogdet, d_ainfo,
+                d_covparms, covfun_name,
+                n, p, m, dim, nparms,
+                profbeta, grad_info);
+            gpuErrchk(cudaPeekAtLastError());
+            gpuErrchk(cudaDeviceSynchronize());
         }
     }
+
+    // int grid_size = n;
+    // dim3 block_size = dim3(m, m);
+
+    // if (dim <= 4) {
+    //     if (m <= 31) {
+    //         compute_pieces_blocks<31, 4, 3><<<grid_size, dim3(m, m)>>> (d_y, d_X, d_NNarray, d_locs,
+    //             d_logdet, d_ySy, d_XSX, d_ySX,
+    //             d_dXSX, d_dySX, d_dySy, d_dlogdet, d_ainfo,
+    //             d_covparms, covfun_name,
+    //             n, p, m, dim, nparms,
+    //             profbeta, grad_info);
+    //         gpuErrchk(cudaPeekAtLastError());
+    //         gpuErrchk(cudaDeviceSynchronize());
+    //     } else if (m <= 61) {
+    //         // compute_pieces_blocks<61, 4><<<grid_size, dim3(m, m)>>> (d_y, d_X, d_NNarray, d_locs,
+    //         //     d_logdet, d_ySy, d_XSX, d_ySX,
+    //         //     d_dXSX, d_dySX, d_dySy, d_dlogdet, d_ainfo,
+    //         //     d_covparms, covfun_name,
+    //         //     n, p, m, dim, nparms,
+    //         //     profbeta, grad_info);
+    //         // gpuErrchk(cudaPeekAtLastError());
+    //         // gpuErrchk(cudaDeviceSynchronize());
+    //     } else if (m <= 91) {
+    //         // compute_pieces_blocks<91, 4><<<grid_size, dim3(m, m)>>> (d_y, d_X, d_NNarray, d_locs,
+    //         //     d_logdet, d_ySy, d_XSX, d_ySX,
+    //         //     d_dXSX, d_dySX, d_dySy, d_dlogdet, d_ainfo,
+    //         //     d_covparms, covfun_name,
+    //         //     n, p, m, dim, nparms,
+    //         //     profbeta, grad_info);
+    //         // gpuErrchk(cudaPeekAtLastError());
+    //         // gpuErrchk(cudaDeviceSynchronize());
+    //     }
+    // }
 
     // std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     // std::cout << "Time difference (sec) = " <<  (std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()) /1000000.0  <<std::endl;
@@ -2196,6 +2212,28 @@ void __global__ substitute_batched_kernel_cublas(double* NNarray, double* locs, 
     }
     sub_locs[i][(m - 1 - j) * dim + k] = locs[(static_cast<int>(NNarray[i * m + j]) - 1) * dim + k];
 }
+void __global__ substitute_X0_batched_kernel_cublas(double* NNarray, double* X, double* X0[],
+    int n, int m, int dim, int p) {
+    // int i = blockIdx.x * blockDim.x * blockDim.y + threadIdx.y * blockDim.x + threadIdx.x;
+    int i = blockIdx.x;
+    int j = threadIdx.x;
+    int k = threadIdx.y;
+
+    if (i < m || j >= m || k >= p) {
+        return;
+    }
+    // int k = threadIdx.y;
+    X0[i][(m - 1 - j) * p + k] = X[(static_cast<int>(NNarray[i * m + j]) - 1) * p + k];
+    // __syncthreads();
+    // if (i == 999 && j == 0 && k == 0) {
+    //     for (int q = 0; q < m; q++) {
+    //         for (int r = 0; r < p; r++) {
+    //             printf("%f ", X0[i][q * p + r]);
+    //         }
+    //         printf("\n");
+    //     }
+    // }
+}
 void __global__ substitute_ysub_batched_kernel_cublas(double* NNarray, double* y, double* ysub[],
     int n, int m, int dim) {
     // int i = blockIdx.x * blockDim.x * blockDim.y + threadIdx.y * blockDim.x + threadIdx.x;
@@ -2243,11 +2281,11 @@ void __global__ covariance_batched_kernel_cublas(double* sub_locs[], double* cov
         cov[i][i1 * m + i2] = exp(-d) * covparms[0];
         // cov[i][i2 * m + i1] = cov[i][i1 * m + i2];
     }
-
-    // if (i == 20 && i1 == 0 && i2 == 0) {
+    // __syncthreads();
+    // if (i == 999 && i1 == 0 && i2 == 0) {
     //     for (int q = 0; q < m; q++) {
     //         for (int p = 0; p < m; p++) {
-    //             printf("%f ", cov[i][q * dim + p]);
+    //             printf("%f ", cov[i][q * m + p]);
     //         }
     //         printf("\n");
     //     }
@@ -2282,18 +2320,21 @@ void call_compute_pieces_gpu_batched(
 ) {
     //transfer to gpu
     printf("First alloc + transfer\n");
-    double* d_covparms, * d_locs, * d_NNarray, *d_y;
+    double* d_covparms, * d_locs, * d_NNarray, *d_y, *d_X;
     gpuErrchk(cudaMalloc((void**)&d_locs, sizeof(double) * n * dim));
     gpuErrchk(cudaMalloc((void**)&d_NNarray, sizeof(double) * n * m));
     gpuErrchk(cudaMalloc((void**)&d_covparms, sizeof(double) * nparms));
     gpuErrchk(cudaMalloc((void**)&d_y, sizeof(double) * n));
+    gpuErrchk(cudaMalloc((void**)&d_X, sizeof(double) * n * p));
 
 
     gpuErrchk(cudaMemcpy(d_covparms, covparms, sizeof(double) *  nparms, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_NNarray, NNarray, sizeof(double) * n * m, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_locs, locs, sizeof(double) * n * dim, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_y, y, sizeof(double) * n, cudaMemcpyHostToDevice));
-    
+    gpuErrchk(cudaMemcpy(d_X, X, sizeof(double) * n * p, cudaMemcpyHostToDevice));
+
+
     printf("Second alloc\n");
     double** sublocs = (double**)malloc(sizeof(double*) * n);
     double** d_sublocs = NULL;
@@ -2301,15 +2342,17 @@ void call_compute_pieces_gpu_batched(
     double** d_cov = NULL;
     double** ysub = (double**)malloc(sizeof(double*) * n);
     double** d_ysub = NULL;
+    double** X0 = (double**)malloc(sizeof(double*) * n);
+    double** d_X0 = NULL;
     cudaMalloc((void**)&sublocs[0], sizeof(double) * n * m * dim);
     cudaMalloc((void**)&cov[0], sizeof(double) * n * m * m);
     cudaMalloc((void**)&ysub[0], sizeof(double) * n * m);
+    cudaMalloc((void**)&X0[0], sizeof(double) * n * m * p);
     for (int j = 1; j < n; j++) {
-        // cudaMalloc((void**)&sublocs[j], sizeof(double) * m * dim);
         sublocs[j] = sublocs[j-1] + m * dim;
-        // cudaMalloc((void**)&cov[j], sizeof(double) * m * m);
         cov[j] = cov[j-1] + m * m;
         ysub[j] = ysub[j-1] + m;
+        X0[j] = X0[j-1] + m * p;
     }
     cudaMalloc((void**)&d_sublocs, sizeof(double*) * n);
     cudaMemcpy(d_sublocs, sublocs, sizeof(double*) * n, cudaMemcpyHostToDevice);
@@ -2317,6 +2360,8 @@ void call_compute_pieces_gpu_batched(
     cudaMemcpy(d_cov, cov, sizeof(double*) * n, cudaMemcpyHostToDevice);
     cudaMalloc((void**)&d_ysub, sizeof(double*) * n);
     cudaMemcpy(d_ysub, ysub, sizeof(double*) * n, cudaMemcpyHostToDevice);
+    cudaMalloc((void**)&d_X0, sizeof(double*) * n);
+    cudaMemcpy(d_X0, X0, sizeof(double*) * n, cudaMemcpyHostToDevice);
     
     
     // printf("Second alloc\n");
@@ -2339,6 +2384,10 @@ void call_compute_pieces_gpu_batched(
     substitute_batched_kernel_cublas << <dim3(n, 1, 1), dim3(m, dim) >> > (d_NNarray, d_locs, d_sublocs, n, m, dim);
     gpuErrchk(cudaPeekAtLastError());
     // gpuErrchk(cudaDeviceSynchronize());
+
+    printf("substitute_X0_batched_kernel_cublas\n");
+    substitute_X0_batched_kernel_cublas << <dim3(n, 1, 1), dim3(m, p) >> > (d_NNarray, d_X, d_X0, n, m, dim, p);
+    gpuErrchk(cudaPeekAtLastError());
 
     printf("substitute_ysub_batched_kernel_cublas\n");
     substitute_ysub_batched_kernel_cublas << <dim3(n, 1, 1), m >> > (d_NNarray, d_y, d_ysub, n, m, dim);
@@ -2363,9 +2412,29 @@ void call_compute_pieces_gpu_batched(
         fprintf(stderr, "Cholesky failed\n");
         exit(1);
     }
-
+    
     cublasHandle_t cublas_handle;
     cublasCreate_v2(&cublas_handle);
+
+    // double* LiX0 = (double*)calloc(n * m * p, sizeof(double));
+    double* LiX0 = (double*)malloc(n * m * p * sizeof(double));
+    if (profbeta) {
+        const double alpha = 1.f;
+        printf("cublasDtrsmBatched\n");
+        cublasDtrsmBatched(cublas_handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, p, &alpha, d_cov, m, d_X0, m, n);
+        gpuErrchk(cudaDeviceSynchronize());
+
+        gpuErrchk(cudaMemcpy(LiX0, X0[0], sizeof(double) * n * m * p, cudaMemcpyDeviceToHost));
+    }
+    
+    // for (int j = 0; j < m; j++) {
+    //     for (int k = 0; k < p; k++) {
+    //         printf("%f ", LiX0[999 * m * p + j * p + k]);
+    //     }
+    //     printf("\n");
+    // }
+    // printf("\n");
+    // LiX0[999 * m * p + (m-1) * p + (p-1)] = 0.198595;
     const double alpha = 1.f;
     printf("cublasDtrsmBatched\n");
     cublasDtrsmBatched(cublas_handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, 1, &alpha, d_cov, m, d_ysub, m, n);
@@ -2393,6 +2462,30 @@ void call_compute_pieces_gpu_batched(
 
     printf("logdet: %e\n", logdet[0]);
     printf("ySy: %e\n", ySy[0]);
+
+    if (profbeta) {
+        for (int i = m; i < n; i++) {
+            for (int i1 = 0; i1 < p; i1++) {
+                for (int i2 = 0; i2 < p; i2++) {
+                    if (i == m) {
+                        XSX[i1 * p + i2] = 0;
+                    }
+                    XSX[i1 * p + i2] += LiX0[i * m * p + (m - 1) * p + i1] * LiX0[i * m * p + (m - 1) * p + i2];
+                    // XSX[i1 * p + i2] += LiX0[i * m * p + i1 * m + (m - 1)] * LiX0[i * m * p + i2 * m + (m - 1)];
+                    // if (i == n-1 && i1 != i2) {
+                    //     XSX[i2 * p + i1] = XSX[i1 * p + i2];
+                    // }
+                }
+                if (i == m) {
+                    ySX[i1] = 0;
+                }
+                ySX[i1] += Liy0[i * m + m - 1] * LiX0[i * m * p + (m - 1) * p + i1];
+                // ySX[i1] += Liy0[i * m + m - 1] * LiX0[i * m * p + i1 * m + (m - 1)];
+            }
+        }
+    }
+
+    
 }
 
 

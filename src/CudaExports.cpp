@@ -816,7 +816,13 @@ void likelihood(
         dXSXf, dySXf, dySyf, dlogdetf, ainfof, profbeta, grad_info, n, m, p, nparms, dim);
     // std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     // std::cout << "Iteration time = " <<  (std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()) /1000000.0  <<std::endl;
-
+    for (int j = 0; j < p; j++) {
+        for (int k = 0; k < p; k++) {
+            printf("%f ", XSXf[j * p + k]);
+        }
+        printf("\n");
+    }
+    printf("\n");
     arma::mat XSX = arma::mat(&XSXf[0], p, p);
     arma::vec ySX = arma::vec(&ySXf[0], p);
     arma::mat dySX = arma::mat(&dySXf[0], nparms, p);
