@@ -2048,7 +2048,7 @@ void call_compute_pieces_gpu(
     
     int block_size = 64;
     int grid_size = ((n + block_size) / block_size);
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    
     if (dim <= 4) {
         if (m <= 31) {
             compute_pieces<31, 4><<<grid_size, block_size>>> (d_y, d_X, d_NNarray, d_locs,
@@ -2094,7 +2094,7 @@ void call_compute_pieces_gpu(
     //         gpuErrchk(cudaPeekAtLastError());
     //         gpuErrchk(cudaDeviceSynchronize());
     //     } else if (m <= 61) {
-    //         // compute_pieces_blocks<61, 4><<<grid_size, dim3(m, m)>>> (d_y, d_X, d_NNarray, d_locs,
+    //         // compute_pieces_blocks<61, 3, 3><<<grid_size, dim3(m, m)>>> (d_y, d_X, d_NNarray, d_locs,
     //         //     d_logdet, d_ySy, d_XSX, d_ySX,
     //         //     d_dXSX, d_dySX, d_dySy, d_dlogdet, d_ainfo,
     //         //     d_covparms, covfun_name,
@@ -2114,9 +2114,6 @@ void call_compute_pieces_gpu(
     //     }
     // }
 
-    // std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    // std::cout << "Time difference (sec) = " <<  (std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()) /1000000.0  <<std::endl;
-    
     double* l_ySy = (double*)malloc(sizeof(double) * n);
     double* l_logdet = (double*)malloc(sizeof(double) * n);
     double* l_ySX = (double*)malloc(sizeof(double) * n * p);
@@ -2300,20 +2297,26 @@ __global__ void covariance_batched_kernel_cublas(double* sub_locs[], double* cov
     if (i < m) {
         return;
     }
-
-    if (i1 == i2) {
-        cov[i][i1 * m + i2] = covparms[0] * (1 + covparms[2]);
-    } else {
-        double d = 0;
-        double temp;
-        for (int k = 0; k < dim; k++) {
-            temp = sub_locs[i][i1 * dim + k] / covparms[1] - sub_locs[i][i2 * dim + k] / covparms[1];
-            d += temp * temp;
+    while (i1 < m) {
+        while (i2 < m) {
+            if (i1 == i2) {
+                cov[i][i1 * m + i2] = covparms[0] * (1 + covparms[2]);
+            } else {
+                double d = 0;
+                double temp;
+                for (int k = 0; k < dim; k++) {
+                    temp = sub_locs[i][i1 * dim + k] / covparms[1] - sub_locs[i][i2 * dim + k] / covparms[1];
+                    d += temp * temp;
+                }
+                d = sqrt(d);
+                
+                cov[i][i1 * m + i2] = exp(-d) * covparms[0];
+                // cov[i][i2 * m + i1] = cov[i][i1 * m + i2];
+            }
+            i2 += blockDim.y;
         }
-        d = sqrt(d);
-        
-        cov[i][i1 * m + i2] = exp(-d) * covparms[0];
-        // cov[i][i2 * m + i1] = cov[i][i1 * m + i2];
+        i2 = threadIdx.y;
+        i1 += blockDim.x;
     }
 }
 
@@ -2323,33 +2326,40 @@ __global__ void dcovariance_batched_kernel_cublas(double* sub_locs[], double* dc
     int i1 = threadIdx.y;
     int i2 = threadIdx.z;
 
-    if (j == 2) {
-        // dcovmat[i * nparms + j][i1 * m + i2] = covparms[0];
-        if (i1 == i2) {
-            dcovmat[j * n + i][i1 * m + i2] = covparms[0];
-        } else {
-            dcovmat[j * n + i][i1 * m + i2] = 0;
-        }
-    }
-    double d = 0.0;
-    double a = 0;
-    for (int r = 0; r < dim; r++) {
-            a = (sub_locs[i][i1 * dim + r] - sub_locs[i][i2 * dim + r]) / covparms[1];
-            d += a * a;
-        }
-    d = sqrt(d);
-    double temp = exp(-d);
+    while (i1 < m) {
+        while (i2 < m) {
+            if (j == 2) {
+                // dcovmat[i * nparms + j][i1 * m + i2] = covparms[0];
+                if (i1 == i2) {
+                    dcovmat[j * n + i][i1 * m + i2] = covparms[0];
+                } else {
+                    dcovmat[j * n + i][i1 * m + i2] = 0;
+                }
+            }
+            double d = 0.0;
+            double a = 0;
+            for (int r = 0; r < dim; r++) {
+                a = (sub_locs[i][i1 * dim + r] - sub_locs[i][i2 * dim + r]) / covparms[1];
+                d += a * a;
+            }
+            d = sqrt(d);
+            double temp = exp(-d);
 
-    if (j == 0) {
-        // dcovmat[i * nparms + j][i1 * m + i2] = temp;
-        dcovmat[j * n + i][i1 * m + i2] = temp;
-        if (i1 == i2) {
-            // dcovmat[i * nparms + j][i1 * m + i2] += covparms[2];
-            dcovmat[j * n + i][i1 * m + i2] += covparms[2];
+            if (j == 0) {
+                // dcovmat[i * nparms + j][i1 * m + i2] = temp;
+                dcovmat[j * n + i][i1 * m + i2] = temp;
+                if (i1 == i2) {
+                    // dcovmat[i * nparms + j][i1 * m + i2] += covparms[2];
+                    dcovmat[j * n + i][i1 * m + i2] += covparms[2];
+                }
+            } else if (j == 1) {
+                // dcovmat[i * nparms + j][i1 * m + i2] = covparms[0] * temp * d / covparms[1];
+                dcovmat[j * n + i][i1 * m + i2] = covparms[0] * temp * d / covparms[1];
+            }
+            i2 += blockDim.z;
         }
-    } else if (j == 1) {
-        // dcovmat[i * nparms + j][i1 * m + i2] = covparms[0] * temp * d / covparms[1];
-        dcovmat[j * n + i][i1 * m + i2] = covparms[0] * temp * d / covparms[1];
+        i2 = threadIdx.z;
+        i1 += blockDim.y;
     }
     
     
@@ -2692,11 +2702,11 @@ void call_compute_pieces_gpu_batched(
     gpuErrchk(cudaPeekAtLastError());
     gpuErrchk(cudaDeviceSynchronize());
 
-    covariance_batched_kernel_cublas << <dim3(n,1,1), dim3(m, m) >> > (d_sublocs, d_cov, d_covparms, n, m, dim);
+    covariance_batched_kernel_cublas << <dim3(n,1,1), dim3(31, 31) >> > (d_sublocs, d_cov, d_covparms, n, m, dim);
     gpuErrchk(cudaPeekAtLastError());
 
     if (grad_info) {
-        dcovariance_batched_kernel_cublas << <dim3(n,1,1), dim3(nparms, m, m) >> > (d_sublocs, d_dcovmat, d_covparms, n, m, dim, nparms);
+        dcovariance_batched_kernel_cublas << <dim3(n,1,1), dim3(nparms, 18, 18) >> > (d_sublocs, d_dcovmat, d_covparms, n, m, dim, nparms);
         gpuErrchk(cudaPeekAtLastError());
     }
 
@@ -2711,6 +2721,8 @@ void call_compute_pieces_gpu_batched(
 
     cusolverErrchk(cusolverDnDpotrfBatched(cusolver_handle, CUBLAS_FILL_MODE_LOWER, m, d_cov, m, d_info, n));
     gpuErrchk(cudaDeviceSynchronize());
+
+    cusolverErrchk(cusolverDnDestroy(cusolver_handle));
     
     cublasHandle_t cublas_handle;
     cublasCreate_v2(&cublas_handle);
@@ -2759,13 +2771,7 @@ void call_compute_pieces_gpu_batched(
     gpuErrchk(cudaMemcpy(lcov, cov[0], sizeof(double) * n * m * m, cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(Liy0, ysub[0], sizeof(double) * n * m, cudaMemcpyDeviceToHost));
 
-    // for (int i = 2000; i < 2050; i++) {
-    //     printf("%e\n",lcov[i]);
-    // }
-    // printf("\n");
-    // for (int i = 2000; i < 2050; i++) {
-    //     printf("%e\n",Liy0[i]);
-    // }
+    cublasErrchk(cublasDestroy(cublas_handle));
 
     logdet[0] = 0.0;
     ySy[0] = 0.0;
@@ -2855,16 +2861,42 @@ void call_compute_pieces_gpu_batched(
         gpuErrchk(cudaMemcpy(l_ainfo, d_ainfo, sizeof(double) * n * nparms * nparms, cudaMemcpyDeviceToHost));
 
         
+        
+
+        gpuErrchk(cudaFree(d_locs));
+        gpuErrchk(cudaFree(d_NNarray));
+        gpuErrchk(cudaFree(d_covparms));
+        gpuErrchk(cudaFree(d_y));
+        gpuErrchk(cudaFree(d_X));
+
+        gpuErrchk(cudaFree(sublocs[0]));
+        gpuErrchk(cudaFree(cov[0]));
+        gpuErrchk(cudaFree(ysub[0]));
+        gpuErrchk(cudaFree(X0[0]));
+
+        gpuErrchk(cudaFree(d_sublocs));
+        gpuErrchk(cudaFree(d_cov));
+        gpuErrchk(cudaFree(d_ysub));
+        gpuErrchk(cudaFree(d_X0));
+
+        gpuErrchk(cudaFree(dcovmat[0]));
+        gpuErrchk(cudaFree(d_dcovmat));
+        
+        gpuErrchk(cudaFree(onevec[0]));
+        gpuErrchk(cudaFree(d_onevec));
+
         gpuErrchk(cudaFree(d_dXSX));
         gpuErrchk(cudaFree(d_dySX));
         gpuErrchk(cudaFree(d_dySy));
         gpuErrchk(cudaFree(d_dlogdet));
         gpuErrchk(cudaFree(d_ainfo));
 
-        gpuErrchk(cudaFree(d_locs));
-        gpuErrchk(cudaFree(d_NNarray));
-        gpuErrchk(cudaFree(d_y));
-        gpuErrchk(cudaFree(d_X));
+        gpuErrchk(cudaFree(d_LidSLi3));
+        gpuErrchk(cudaFree(d_LidSLi2));
+        gpuErrchk(cudaFree(d_v1));
+        gpuErrchk(cudaFree(d_c));
+        
+        
 
         // ySy[0] = 0;
         // logdet[0] = 0;
@@ -2916,70 +2948,22 @@ void call_compute_pieces_gpu_batched(
             }
         }
 
-        
-        // printf("dXSX\n");
-        // for (int q = 0; q < m; q++) {
-        //     for (int r = 0; r < p; r++) {
-        //         printf("%f ", LiX0[i][q * p + r]);
-        //     }
-        //     printf("\n");
-        // }
-        // printf("\n");
-        // printf("Liy0\n");
-        // for (int q = 0; q < m; q++) {
-        //     printf("%f ", Liy0[i][q]);
-        //     printf("\n");
-        // }
-        // printf("\n");
-        // printf("choli2\n");
-        // for (int q = 0; q < m; q++) {
-        //     printf("%f ", choli2[i][q]);
-        //     printf("\n");
-        // }
-        // printf("\n");
-        // printf("dcovmat\n");
-        // for (int q = 0; q < m; q++) {
-        //     for (int r = 0; r < m; r++) {
-        //         printf("%f ", dcovmat[1 * n + i][q * m + r]);
-        //     }
-        //     printf("\n");
-        // }
-        // printf("\n");
-        
-        
-        // for(int j=0; j<nparms; j++){
-        //     // LidSLi3 = forward_solve( cholmat, dcovmat.slice(j) * choli2 );
-        //     // const double alpha = 1.f;
-        //     printf("cublasDtrsmBatched\n");
-        //     cublasErrchk(cublasDgemvBatched(cublas_handle, CUBLAS_OP_N, m, m, &alpha, d_dcovmat + j * n, m, d_onevec, 1, 0, d_LidSLi3, 1, n));
-        //     gpuErrchk(cudaDeviceSynchronize());
-
-        //     printf("cublasDtrsmBatched\n");
-        //     cublasErrchk(cublasDtrsmBatched(cublas_handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, 1, &alpha, d_cov, m, d_ysub, m, n));
-        //     gpuErrchk(cudaDeviceSynchronize());
-
-        //     // v1 = LiX0.t() * LidSLi3;
-        //     // double s1 = as_scalar( Liy0.t() * LidSLi3 ); 
-        //     // // update all quantities
-        //     // // bottom-right corner gets double counted, so need to subtract it off
-        //     // (l_dXSX).slice(j) += v1 * LiX0.rows(i2) + ( v1 * LiX0.rows(i2) ).t() - 
-        //     //     as_scalar(LidSLi3(i2)) * ( LiX0.rows(i2).t() * LiX0.rows(i2) );
-        //     // (l_dySy)(j) += as_scalar( 2.0 * s1 * Liy0(i2)  - 
-        //     //     LidSLi3(i2) * Liy0(i2) * Liy0(i2) );
-        //     // (l_dySX).col(j) += (  s1 * LiX0.rows(i2) + ( v1 * Liy0(i2) ).t() -  
-        //     //     as_scalar( LidSLi3(i2) ) * LiX0.rows(i2) * as_scalar( Liy0(i2))).t();
-        //     // (l_dlogdet)(j) += as_scalar( LidSLi3(i2) );
-        //     // // store last column of Li * (dS_j) * Lit
-        //     // LidSLi2.col(j) = LidSLi3;
-        //     grad_batched_kernel << <dim3(n,1,1), dim3(nparms, m, m) >> > (
-        //         X0 /*LiX0*/, 
-        //         n, m, dim, nparms
-        //     );
-        //     gpuErrchk(cudaPeekAtLastError());
-
-
-        // }
+        free(l_dySX);
+        free(l_dXSX);
+        free(l_dySy);
+        free(l_dlogdet);
+        free(l_ainfo);
     }
+
+    free(sublocs);
+    free(cov);
+    free(ysub);
+    free(X0);
+    free(dcovmat);
+    free(lonevec);
+    free(LiX0);
+    free(lcov);
+    free(Liy0);
 
 
 }
