@@ -111,7 +111,6 @@ __device__ void exponential_scaledim(double* covparms, double* locsub, double* c
 
 __device__ void d_exponential_scaledim(double* covparms, double* locsub, double* dcovmat,
                 int dim, int m, int nparms) {
-    double temp = 0;
     for (int i1 = 0; i1 < m; i1++) {
         for (int i2 = 0; i2 <= i1; i2++) {
             for (int k = 0; k < nparms; k++) {

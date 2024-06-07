@@ -5,7 +5,7 @@
 #include <omp.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include <cusolverDn.h>
+// #include <cusolverDn.h>
 #include <algorithm>
 #include <string>
 
@@ -20,23 +20,23 @@ inline void gpuAssert(cudaError_t code, const char* file, int line, bool abort =
     }
 }
 
-// Helper function to check if cuBLAS functions have executed properly
-#define cublasErrchk(ans) {cublasAssert((ans), __FILE__, __LINE__);}
-inline void cublasAssert(cublasStatus_t status, const char* file, int line, bool abort = true)
-{
-    if (status != CUBLAS_STATUS_SUCCESS) {
-        printf("GPUassert: %s %s %d\n", "cuBLAS", file, line);
-    }
-}
+// // Helper function to check if cuBLAS functions have executed properly
+// #define cublasErrchk(ans) {cublasAssert((ans), __FILE__, __LINE__);}
+// inline void cublasAssert(cublasStatus_t status, const char* file, int line, bool abort = true)
+// {
+//     if (status != CUBLAS_STATUS_SUCCESS) {
+//         printf("GPUassert: %s %s %d\n", "cuBLAS", file, line);
+//     }
+// }
 
-// Helper function to check if cuSOLVER functions have executed properly
-#define cusolverErrchk(ans) {cusolverAssert((ans), __FILE__, __LINE__);}
-inline void cusolverAssert(cusolverStatus_t status, const char* file, int line, bool abort = true)
-{
-    if (status != CUSOLVER_STATUS_SUCCESS) {
-        printf("GPUassert: %s %s %d\n", "cuSOLVER", file, line);
-    }
-}
+// // Helper function to check if cuSOLVER functions have executed properly
+// #define cusolverErrchk(ans) {cusolverAssert((ans), __FILE__, __LINE__);}
+// inline void cusolverAssert(cusolverStatus_t status, const char* file, int line, bool abort = true)
+// {
+//     if (status != CUSOLVER_STATUS_SUCCESS) {
+//         printf("GPUassert: %s %s %d\n", "cuSOLVER", file, line);
+//     }
+// }
 
 
 // Computes intermediary quantities for likelihood, gradient, and Fisher information of GP
@@ -1064,314 +1064,314 @@ __global__ void grad_info_batched_kernel(
     }
 }
 
-extern "C"
-void call_compute_pieces_gpu_batched(
-    const double* covparms,
-    const short covfun_name,
-    const double* locs,
-    const double* NNarray,
-    const double* y,
-    const double* X,
-    double* XSX,
-    double* ySX,
-    double* ySy,
-    double* logdet,
-    double* dXSX,
-    double* dySX,
-    double* dySy,
-    double* dlogdet,
-    double* ainfo,
-    const bool profbeta,
-    const bool grad_info,
-    const int n,
-    const int m,
-    const int p,
-    const int nparms,
-    const int dim
-) {
-    //transfer to gpu
-    double* d_covparms, * d_locs, * d_NNarray, *d_y, *d_X;
-    gpuErrchk(cudaMalloc((void**)&d_locs, sizeof(double) * n * dim));
-    gpuErrchk(cudaMalloc((void**)&d_NNarray, sizeof(double) * n * m));
-    gpuErrchk(cudaMalloc((void**)&d_covparms, sizeof(double) * nparms));
-    gpuErrchk(cudaMalloc((void**)&d_y, sizeof(double) * n));
-    gpuErrchk(cudaMalloc((void**)&d_X, sizeof(double) * n * p));
+// extern "C"
+// void call_compute_pieces_gpu_batched(
+//     const double* covparms,
+//     const short covfun_name,
+//     const double* locs,
+//     const double* NNarray,
+//     const double* y,
+//     const double* X,
+//     double* XSX,
+//     double* ySX,
+//     double* ySy,
+//     double* logdet,
+//     double* dXSX,
+//     double* dySX,
+//     double* dySy,
+//     double* dlogdet,
+//     double* ainfo,
+//     const bool profbeta,
+//     const bool grad_info,
+//     const int n,
+//     const int m,
+//     const int p,
+//     const int nparms,
+//     const int dim
+// ) {
+//     //transfer to gpu
+//     double* d_covparms, * d_locs, * d_NNarray, *d_y, *d_X;
+//     gpuErrchk(cudaMalloc((void**)&d_locs, sizeof(double) * n * dim));
+//     gpuErrchk(cudaMalloc((void**)&d_NNarray, sizeof(double) * n * m));
+//     gpuErrchk(cudaMalloc((void**)&d_covparms, sizeof(double) * nparms));
+//     gpuErrchk(cudaMalloc((void**)&d_y, sizeof(double) * n));
+//     gpuErrchk(cudaMalloc((void**)&d_X, sizeof(double) * n * p));
 
 
-    gpuErrchk(cudaMemcpy(d_covparms, covparms, sizeof(double) *  nparms, cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(d_NNarray, NNarray, sizeof(double) * n * m, cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(d_locs, locs, sizeof(double) * n * dim, cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(d_y, y, sizeof(double) * n, cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(d_X, X, sizeof(double) * n * p, cudaMemcpyHostToDevice));
+//     gpuErrchk(cudaMemcpy(d_covparms, covparms, sizeof(double) *  nparms, cudaMemcpyHostToDevice));
+//     gpuErrchk(cudaMemcpy(d_NNarray, NNarray, sizeof(double) * n * m, cudaMemcpyHostToDevice));
+//     gpuErrchk(cudaMemcpy(d_locs, locs, sizeof(double) * n * dim, cudaMemcpyHostToDevice));
+//     gpuErrchk(cudaMemcpy(d_y, y, sizeof(double) * n, cudaMemcpyHostToDevice));
+//     gpuErrchk(cudaMemcpy(d_X, X, sizeof(double) * n * p, cudaMemcpyHostToDevice));
 
 
-    double** sublocs = (double**)malloc(sizeof(double*) * n);
-    double** d_sublocs = NULL;
-    double** cov = (double**)malloc(sizeof(double*) * n);
-    double** d_cov = NULL;
-    double** ysub = (double**)malloc(sizeof(double*) * n);
-    double** d_ysub = NULL;
-    double** X0 = (double**)malloc(sizeof(double*) * n);
-    double** d_X0 = NULL;
+//     double** sublocs = (double**)malloc(sizeof(double*) * n);
+//     double** d_sublocs = NULL;
+//     double** cov = (double**)malloc(sizeof(double*) * n);
+//     double** d_cov = NULL;
+//     double** ysub = (double**)malloc(sizeof(double*) * n);
+//     double** d_ysub = NULL;
+//     double** X0 = (double**)malloc(sizeof(double*) * n);
+//     double** d_X0 = NULL;
 
-    cudaMalloc((void**)&sublocs[0], sizeof(double) * n * m * dim);
-    cudaMalloc((void**)&cov[0], sizeof(double) * n * m * m);
-    cudaMalloc((void**)&ysub[0], sizeof(double) * n * m);
-    cudaMalloc((void**)&X0[0], sizeof(double) * n * m * p);
-    for (int j = 1; j < n; j++) {
-        sublocs[j] = sublocs[j-1] + m * dim;
-        cov[j] = cov[j-1] + m * m;
-        ysub[j] = ysub[j-1] + m;
-        X0[j] = X0[j-1] + m * p;
-    }
-    cudaMalloc((void**)&d_sublocs, sizeof(double*) * n);
-    cudaMemcpy(d_sublocs, sublocs, sizeof(double*) * n, cudaMemcpyHostToDevice);
-    cudaMalloc((void**)&d_cov, sizeof(double*) * n);
-    cudaMemcpy(d_cov, cov, sizeof(double*) * n, cudaMemcpyHostToDevice);
-    cudaMalloc((void**)&d_ysub, sizeof(double*) * n);
-    cudaMemcpy(d_ysub, ysub, sizeof(double*) * n, cudaMemcpyHostToDevice);
-    cudaMalloc((void**)&d_X0, sizeof(double*) * n);
-    cudaMemcpy(d_X0, X0, sizeof(double*) * n, cudaMemcpyHostToDevice);
+//     cudaMalloc((void**)&sublocs[0], sizeof(double) * n * m * dim);
+//     cudaMalloc((void**)&cov[0], sizeof(double) * n * m * m);
+//     cudaMalloc((void**)&ysub[0], sizeof(double) * n * m);
+//     cudaMalloc((void**)&X0[0], sizeof(double) * n * m * p);
+//     for (int j = 1; j < n; j++) {
+//         sublocs[j] = sublocs[j-1] + m * dim;
+//         cov[j] = cov[j-1] + m * m;
+//         ysub[j] = ysub[j-1] + m;
+//         X0[j] = X0[j-1] + m * p;
+//     }
+//     cudaMalloc((void**)&d_sublocs, sizeof(double*) * n);
+//     cudaMemcpy(d_sublocs, sublocs, sizeof(double*) * n, cudaMemcpyHostToDevice);
+//     cudaMalloc((void**)&d_cov, sizeof(double*) * n);
+//     cudaMemcpy(d_cov, cov, sizeof(double*) * n, cudaMemcpyHostToDevice);
+//     cudaMalloc((void**)&d_ysub, sizeof(double*) * n);
+//     cudaMemcpy(d_ysub, ysub, sizeof(double*) * n, cudaMemcpyHostToDevice);
+//     cudaMalloc((void**)&d_X0, sizeof(double*) * n);
+//     cudaMemcpy(d_X0, X0, sizeof(double*) * n, cudaMemcpyHostToDevice);
     
     
-    double** dcovmat = (double**)malloc(sizeof(double*) * n * nparms);
-    double** d_dcovmat = NULL;
-    cudaMalloc((void**)&dcovmat[0], sizeof(double) * n * nparms * m * m);
-    for (int j = 1; j < n * nparms; j++) {
-        dcovmat[j] = dcovmat[j-1] + m * m;
-    }
-    cudaMalloc((void**)&d_dcovmat, sizeof(double*) * n * nparms);
-    cudaMemcpy(d_dcovmat, dcovmat, sizeof(double*) * n * nparms, cudaMemcpyHostToDevice);
+//     double** dcovmat = (double**)malloc(sizeof(double*) * n * nparms);
+//     double** d_dcovmat = NULL;
+//     cudaMalloc((void**)&dcovmat[0], sizeof(double) * n * nparms * m * m);
+//     for (int j = 1; j < n * nparms; j++) {
+//         dcovmat[j] = dcovmat[j-1] + m * m;
+//     }
+//     cudaMalloc((void**)&d_dcovmat, sizeof(double*) * n * nparms);
+//     cudaMemcpy(d_dcovmat, dcovmat, sizeof(double*) * n * nparms, cudaMemcpyHostToDevice);
 
-    // onevec
-    double** onevec = (double**)malloc(sizeof(double*) * n);
-    double** d_onevec = NULL;
-    cudaMalloc((void**)&onevec[0], sizeof(double) * n * m);
+//     // onevec
+//     double** onevec = (double**)malloc(sizeof(double*) * n);
+//     double** d_onevec = NULL;
+//     cudaMalloc((void**)&onevec[0], sizeof(double) * n * m);
 
-    double* lonevec = (double*)calloc(n * m, sizeof(double));
-    for (int j = 0; j < n; j++) {
-        lonevec[j * m + (m-1)] = 1.0;
-    }
-    cudaMemcpy(onevec[0], lonevec, sizeof(double) * n * m, cudaMemcpyHostToDevice);
-    for (int j = 1; j < n; j++) {
-        onevec[j] = onevec[j-1] + m;
-    }
-    cudaMalloc((void**)&d_onevec, sizeof(double*) * n * m);
-    cudaMemcpy(d_onevec, onevec, sizeof(double*) * n * m, cudaMemcpyHostToDevice);
+//     double* lonevec = (double*)calloc(n * m, sizeof(double));
+//     for (int j = 0; j < n; j++) {
+//         lonevec[j * m + (m-1)] = 1.0;
+//     }
+//     cudaMemcpy(onevec[0], lonevec, sizeof(double) * n * m, cudaMemcpyHostToDevice);
+//     for (int j = 1; j < n; j++) {
+//         onevec[j] = onevec[j-1] + m;
+//     }
+//     cudaMalloc((void**)&d_onevec, sizeof(double*) * n * m);
+//     cudaMemcpy(d_onevec, onevec, sizeof(double*) * n * m, cudaMemcpyHostToDevice);
     
-    substitute_batched_kernel_cublas << <dim3(n, 1, 1), dim3(m, dim) >> > (d_NNarray, d_locs, d_sublocs, n, m, dim);
-    gpuErrchk(cudaPeekAtLastError());
-    // gpuErrchk(cudaDeviceSynchronize());
+//     substitute_batched_kernel_cublas << <dim3(n, 1, 1), dim3(m, dim) >> > (d_NNarray, d_locs, d_sublocs, n, m, dim);
+//     gpuErrchk(cudaPeekAtLastError());
+//     // gpuErrchk(cudaDeviceSynchronize());
 
-    substitute_X0_batched_kernel_cublas << <dim3(n, 1, 1), dim3(m, p) >> > (d_NNarray, d_X, d_X0, n, m, dim, p);
-    gpuErrchk(cudaPeekAtLastError());
+//     substitute_X0_batched_kernel_cublas << <dim3(n, 1, 1), dim3(m, p) >> > (d_NNarray, d_X, d_X0, n, m, dim, p);
+//     gpuErrchk(cudaPeekAtLastError());
 
-    substitute_ysub_batched_kernel_cublas << <dim3(n, 1, 1), m >> > (d_NNarray, d_y, d_ysub, n, m, dim);
-    gpuErrchk(cudaPeekAtLastError());
-    gpuErrchk(cudaDeviceSynchronize());
+//     substitute_ysub_batched_kernel_cublas << <dim3(n, 1, 1), m >> > (d_NNarray, d_y, d_ysub, n, m, dim);
+//     gpuErrchk(cudaPeekAtLastError());
+//     gpuErrchk(cudaDeviceSynchronize());
 
-    covariance_batched_kernel_cublas << <dim3(n,1,1), dim3(31, 31) >> > (d_sublocs, d_cov, d_covparms, n, m, dim);
-    gpuErrchk(cudaPeekAtLastError());
+//     covariance_batched_kernel_cublas << <dim3(n,1,1), dim3(31, 31) >> > (d_sublocs, d_cov, d_covparms, n, m, dim);
+//     gpuErrchk(cudaPeekAtLastError());
 
-    if (grad_info) {
-        dcovariance_batched_kernel_cublas << <dim3(n,1,1), dim3(nparms, 18, 18) >> > (d_sublocs, d_dcovmat, d_covparms, n, m, dim, nparms);
-        gpuErrchk(cudaPeekAtLastError());
-    }
+//     if (grad_info) {
+//         dcovariance_batched_kernel_cublas << <dim3(n,1,1), dim3(nparms, 18, 18) >> > (d_sublocs, d_dcovmat, d_covparms, n, m, dim, nparms);
+//         gpuErrchk(cudaPeekAtLastError());
+//     }
 
-    gpuErrchk(cudaDeviceSynchronize());
+//     gpuErrchk(cudaDeviceSynchronize());
 
-    cusolverDnHandle_t cusolver_handle;
-    cusolverDnCreate(&cusolver_handle);
-    int* d_info;
-    gpuErrchk(cudaMalloc((void**)&d_info, n * sizeof(int)));
+//     cusolverDnHandle_t cusolver_handle;
+//     cusolverDnCreate(&cusolver_handle);
+//     int* d_info;
+//     gpuErrchk(cudaMalloc((void**)&d_info, n * sizeof(int)));
 
-    cusolverErrchk(cusolverDnDpotrfBatched(cusolver_handle, CUBLAS_FILL_MODE_LOWER, m, d_cov, m, d_info, n));
-    gpuErrchk(cudaDeviceSynchronize());
+//     cusolverErrchk(cusolverDnDpotrfBatched(cusolver_handle, CUBLAS_FILL_MODE_LOWER, m, d_cov, m, d_info, n));
+//     gpuErrchk(cudaDeviceSynchronize());
 
-    cusolverErrchk(cusolverDnDestroy(cusolver_handle));
+//     cusolverErrchk(cusolverDnDestroy(cusolver_handle));
     
-    cublasHandle_t cublas_handle;
-    cublasCreate_v2(&cublas_handle);
+//     cublasHandle_t cublas_handle;
+//     cublasCreate_v2(&cublas_handle);
 
-    // choli2 = backward_solve( cholmat, onevec );
-    if (grad_info) {
-        const double alpha = 1.f;
-        cublasErrchk(cublasDtrsmBatched(cublas_handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, m, 1, &alpha, d_cov, m, d_onevec, m, n));
-        gpuErrchk(cudaDeviceSynchronize());
-    }
+//     // choli2 = backward_solve( cholmat, onevec );
+//     if (grad_info) {
+//         const double alpha = 1.f;
+//         cublasErrchk(cublasDtrsmBatched(cublas_handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, m, 1, &alpha, d_cov, m, d_onevec, m, n));
+//         gpuErrchk(cudaDeviceSynchronize());
+//     }
 
-    // LiX0 = forward_solve_mat( cholmat, X0 );
-    double* LiX0 = (double*)malloc(n * m * p * sizeof(double));
-    if (profbeta) {
-        const double alpha = 1.f;
-        cublasErrchk(cublasDtrsmBatched(cublas_handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, p, &alpha, d_cov, m, d_X0, m, n));
-        gpuErrchk(cudaDeviceSynchronize());
+//     // LiX0 = forward_solve_mat( cholmat, X0 );
+//     double* LiX0 = (double*)malloc(n * m * p * sizeof(double));
+//     if (profbeta) {
+//         const double alpha = 1.f;
+//         cublasErrchk(cublasDtrsmBatched(cublas_handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, p, &alpha, d_cov, m, d_X0, m, n));
+//         gpuErrchk(cudaDeviceSynchronize());
 
-        gpuErrchk(cudaMemcpy(LiX0, X0[0], sizeof(double) * n * m * p, cudaMemcpyDeviceToHost));
-    }
+//         gpuErrchk(cudaMemcpy(LiX0, X0[0], sizeof(double) * n * m * p, cudaMemcpyDeviceToHost));
+//     }
     
-    const double alpha = 1.f;
-    cublasErrchk(cublasDtrsmBatched(cublas_handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, 1, &alpha, d_cov, m, d_ysub, m, n));
-    gpuErrchk(cudaDeviceSynchronize());
+//     const double alpha = 1.f;
+//     cublasErrchk(cublasDtrsmBatched(cublas_handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, 1, &alpha, d_cov, m, d_ysub, m, n));
+//     gpuErrchk(cudaDeviceSynchronize());
 
-    double* lcov = (double*)malloc(sizeof(double) * n * m * m);
-    double* Liy0 = (double*)malloc(sizeof(double) * n * m);
-    gpuErrchk(cudaMemcpy(lcov, cov[0], sizeof(double) * n * m * m, cudaMemcpyDeviceToHost));
-    gpuErrchk(cudaMemcpy(Liy0, ysub[0], sizeof(double) * n * m, cudaMemcpyDeviceToHost));
+//     double* lcov = (double*)malloc(sizeof(double) * n * m * m);
+//     double* Liy0 = (double*)malloc(sizeof(double) * n * m);
+//     gpuErrchk(cudaMemcpy(lcov, cov[0], sizeof(double) * n * m * m, cudaMemcpyDeviceToHost));
+//     gpuErrchk(cudaMemcpy(Liy0, ysub[0], sizeof(double) * n * m, cudaMemcpyDeviceToHost));
 
-    cublasErrchk(cublasDestroy(cublas_handle));
+//     cublasErrchk(cublasDestroy(cublas_handle));
 
-    logdet[0] = 0.0;
-    ySy[0] = 0.0;
-    for (int i = m; i < n; i++) {
-        logdet[0] += 2.0 * log(lcov[i * m * m + (m - 1) * m + m - 1]);
-        ySy[0] += Liy0[i * m + m - 1] * Liy0[i * m + m - 1];
-    }
+//     logdet[0] = 0.0;
+//     ySy[0] = 0.0;
+//     for (int i = m; i < n; i++) {
+//         logdet[0] += 2.0 * log(lcov[i * m * m + (m - 1) * m + m - 1]);
+//         ySy[0] += Liy0[i * m + m - 1] * Liy0[i * m + m - 1];
+//     }
 
-    if (profbeta) {
-        for (int i = m; i < n; i++) {
-            for (int i1 = 0; i1 < p; i1++) {
-                for (int i2 = 0; i2 < p; i2++) {
-                    if (i == m) {
-                        XSX[i1 * p + i2] = 0;
-                    }
-                    XSX[i1 * p + i2] += LiX0[i * m * p + (m - 1) * p + i1] * LiX0[i * m * p + (m - 1) * p + i2];
-                }
-                if (i == m) {
-                    ySX[i1] = 0;
-                }
-                ySX[i1] += Liy0[i * m + m - 1] * LiX0[i * m * p + (m - 1) * p + i1];
-            }
-        }
-    }
+//     if (profbeta) {
+//         for (int i = m; i < n; i++) {
+//             for (int i1 = 0; i1 < p; i1++) {
+//                 for (int i2 = 0; i2 < p; i2++) {
+//                     if (i == m) {
+//                         XSX[i1 * p + i2] = 0;
+//                     }
+//                     XSX[i1 * p + i2] += LiX0[i * m * p + (m - 1) * p + i1] * LiX0[i * m * p + (m - 1) * p + i2];
+//                 }
+//                 if (i == m) {
+//                     ySX[i1] = 0;
+//                 }
+//                 ySX[i1] += Liy0[i * m + m - 1] * LiX0[i * m * p + (m - 1) * p + i1];
+//             }
+//         }
+//     }
 
-    if (grad_info) {
+//     if (grad_info) {
         
-        double* d_dXSX;
-        double* d_dySX;
-        double* d_dySy;
-        double* d_dlogdet;
-        double* d_ainfo;
-        gpuErrchk(cudaMalloc((void**)&d_dXSX, sizeof(double) * n * p * p * nparms));
-        gpuErrchk(cudaMalloc((void**)&d_dySX, sizeof(double) * n * p * nparms));
-        gpuErrchk(cudaMalloc((void**)&d_dySy, sizeof(double) * n * nparms));
-        gpuErrchk(cudaMalloc((void**)&d_dlogdet, sizeof(double) * n * nparms));
-        gpuErrchk(cudaMalloc((void**)&d_ainfo, sizeof(double) * n * nparms * nparms));
+//         double* d_dXSX;
+//         double* d_dySX;
+//         double* d_dySy;
+//         double* d_dlogdet;
+//         double* d_ainfo;
+//         gpuErrchk(cudaMalloc((void**)&d_dXSX, sizeof(double) * n * p * p * nparms));
+//         gpuErrchk(cudaMalloc((void**)&d_dySX, sizeof(double) * n * p * nparms));
+//         gpuErrchk(cudaMalloc((void**)&d_dySy, sizeof(double) * n * nparms));
+//         gpuErrchk(cudaMalloc((void**)&d_dlogdet, sizeof(double) * n * nparms));
+//         gpuErrchk(cudaMalloc((void**)&d_ainfo, sizeof(double) * n * nparms * nparms));
 
-        double* d_LidSLi3;
-        double* d_LidSLi2;
-        double* d_v1;
-        double* d_c;
+//         double* d_LidSLi3;
+//         double* d_LidSLi2;
+//         double* d_v1;
+//         double* d_c;
         
-        gpuErrchk(cudaMalloc((void**)&d_LidSLi3, sizeof(double) * n * m));
-        gpuErrchk(cudaMalloc((void**)&d_LidSLi2, sizeof(double) * n * m * nparms));
-        gpuErrchk(cudaMalloc((void**)&d_v1, sizeof(double) * n * p));
-        gpuErrchk(cudaMalloc((void**)&d_c, sizeof(double) * n * m));
+//         gpuErrchk(cudaMalloc((void**)&d_LidSLi3, sizeof(double) * n * m));
+//         gpuErrchk(cudaMalloc((void**)&d_LidSLi2, sizeof(double) * n * m * nparms));
+//         gpuErrchk(cudaMalloc((void**)&d_v1, sizeof(double) * n * p));
+//         gpuErrchk(cudaMalloc((void**)&d_c, sizeof(double) * n * m));
         
-        int block_size = 64;
-        int grid_size = ((n + block_size) / block_size);
-        grad_info_batched_kernel<<<grid_size, block_size>>>(
-            d_cov, d_dcovmat,
-            d_dXSX, d_dySX, d_dySy, d_dlogdet, d_ainfo,
-            d_LidSLi3, d_LidSLi2, d_v1, d_c,
-            d_X0, d_ysub, d_onevec,
-            n, p, m, dim, nparms
-        );
-        gpuErrchk(cudaPeekAtLastError());
-        gpuErrchk(cudaDeviceSynchronize());
+//         int block_size = 64;
+//         int grid_size = ((n + block_size) / block_size);
+//         grad_info_batched_kernel<<<grid_size, block_size>>>(
+//             d_cov, d_dcovmat,
+//             d_dXSX, d_dySX, d_dySy, d_dlogdet, d_ainfo,
+//             d_LidSLi3, d_LidSLi2, d_v1, d_c,
+//             d_X0, d_ysub, d_onevec,
+//             n, p, m, dim, nparms
+//         );
+//         gpuErrchk(cudaPeekAtLastError());
+//         gpuErrchk(cudaDeviceSynchronize());
         
-        double* l_dySX = (double*)malloc(sizeof(double) * n * p * nparms);
-        double* l_dXSX = (double*)malloc(sizeof(double) * n * p * p * nparms);
-        double* l_dySy = (double*)malloc(sizeof(double) * n * nparms);
-        double* l_dlogdet = (double*)malloc(sizeof(double) * n * nparms);
-        double* l_ainfo = (double*)malloc(sizeof(double) * n * nparms * nparms);
+//         double* l_dySX = (double*)malloc(sizeof(double) * n * p * nparms);
+//         double* l_dXSX = (double*)malloc(sizeof(double) * n * p * p * nparms);
+//         double* l_dySy = (double*)malloc(sizeof(double) * n * nparms);
+//         double* l_dlogdet = (double*)malloc(sizeof(double) * n * nparms);
+//         double* l_ainfo = (double*)malloc(sizeof(double) * n * nparms * nparms);
         
-        gpuErrchk(cudaMemcpy(l_dySX, d_dySX, sizeof(double) * n * p * nparms, cudaMemcpyDeviceToHost));
-        gpuErrchk(cudaMemcpy(l_dXSX, d_dXSX, sizeof(double) * n * p * p * nparms, cudaMemcpyDeviceToHost));
-        gpuErrchk(cudaMemcpy(l_dySy, d_dySy, sizeof(double) * n * nparms, cudaMemcpyDeviceToHost));
-        gpuErrchk(cudaMemcpy(l_dlogdet, d_dlogdet, sizeof(double) * n * nparms, cudaMemcpyDeviceToHost));
-        gpuErrchk(cudaMemcpy(l_ainfo, d_ainfo, sizeof(double) * n * nparms * nparms, cudaMemcpyDeviceToHost));
+//         gpuErrchk(cudaMemcpy(l_dySX, d_dySX, sizeof(double) * n * p * nparms, cudaMemcpyDeviceToHost));
+//         gpuErrchk(cudaMemcpy(l_dXSX, d_dXSX, sizeof(double) * n * p * p * nparms, cudaMemcpyDeviceToHost));
+//         gpuErrchk(cudaMemcpy(l_dySy, d_dySy, sizeof(double) * n * nparms, cudaMemcpyDeviceToHost));
+//         gpuErrchk(cudaMemcpy(l_dlogdet, d_dlogdet, sizeof(double) * n * nparms, cudaMemcpyDeviceToHost));
+//         gpuErrchk(cudaMemcpy(l_ainfo, d_ainfo, sizeof(double) * n * nparms * nparms, cudaMemcpyDeviceToHost));
 
-        gpuErrchk(cudaFree(d_locs));
-        gpuErrchk(cudaFree(d_NNarray));
-        gpuErrchk(cudaFree(d_covparms));
-        gpuErrchk(cudaFree(d_y));
-        gpuErrchk(cudaFree(d_X));
+//         gpuErrchk(cudaFree(d_locs));
+//         gpuErrchk(cudaFree(d_NNarray));
+//         gpuErrchk(cudaFree(d_covparms));
+//         gpuErrchk(cudaFree(d_y));
+//         gpuErrchk(cudaFree(d_X));
 
-        gpuErrchk(cudaFree(sublocs[0]));
-        gpuErrchk(cudaFree(cov[0]));
-        gpuErrchk(cudaFree(ysub[0]));
-        gpuErrchk(cudaFree(X0[0]));
+//         gpuErrchk(cudaFree(sublocs[0]));
+//         gpuErrchk(cudaFree(cov[0]));
+//         gpuErrchk(cudaFree(ysub[0]));
+//         gpuErrchk(cudaFree(X0[0]));
 
-        gpuErrchk(cudaFree(d_sublocs));
-        gpuErrchk(cudaFree(d_cov));
-        gpuErrchk(cudaFree(d_ysub));
-        gpuErrchk(cudaFree(d_X0));
+//         gpuErrchk(cudaFree(d_sublocs));
+//         gpuErrchk(cudaFree(d_cov));
+//         gpuErrchk(cudaFree(d_ysub));
+//         gpuErrchk(cudaFree(d_X0));
 
-        gpuErrchk(cudaFree(dcovmat[0]));
-        gpuErrchk(cudaFree(d_dcovmat));
+//         gpuErrchk(cudaFree(dcovmat[0]));
+//         gpuErrchk(cudaFree(d_dcovmat));
         
-        gpuErrchk(cudaFree(onevec[0]));
-        gpuErrchk(cudaFree(d_onevec));
+//         gpuErrchk(cudaFree(onevec[0]));
+//         gpuErrchk(cudaFree(d_onevec));
 
-        gpuErrchk(cudaFree(d_dXSX));
-        gpuErrchk(cudaFree(d_dySX));
-        gpuErrchk(cudaFree(d_dySy));
-        gpuErrchk(cudaFree(d_dlogdet));
-        gpuErrchk(cudaFree(d_ainfo));
+//         gpuErrchk(cudaFree(d_dXSX));
+//         gpuErrchk(cudaFree(d_dySX));
+//         gpuErrchk(cudaFree(d_dySy));
+//         gpuErrchk(cudaFree(d_dlogdet));
+//         gpuErrchk(cudaFree(d_ainfo));
 
-        gpuErrchk(cudaFree(d_LidSLi3));
-        gpuErrchk(cudaFree(d_LidSLi2));
-        gpuErrchk(cudaFree(d_v1));
-        gpuErrchk(cudaFree(d_c));
+//         gpuErrchk(cudaFree(d_LidSLi3));
+//         gpuErrchk(cudaFree(d_LidSLi2));
+//         gpuErrchk(cudaFree(d_v1));
+//         gpuErrchk(cudaFree(d_c));
         
-        for (int i = m; i < n; i++) {
-            for (int j = 0; j < p; j++) {
-                for (int k = 0; k < p; k++) {
-                    for (int l = 0; l < nparms; l++) {
-                        if (i == m) {
-                            dXSX[j * p * nparms + k * nparms + l] = 0;
-                        }
-                        dXSX[j * p * nparms + k * nparms + l] += l_dXSX[i * p * p * nparms + j * p * nparms + k * nparms + l];
-                    }
-                }
-                for (int k = 0; k < nparms; k++) {
-                    if (i == m) {
-                        dySX[j * nparms + k] = 0;
-                    }
-                    dySX[j * nparms + k] += l_dySX[i * p * nparms + j * nparms + k];
-                }
-            }
-            for (int j = 0; j < nparms; j++) {
-                if (i == m) {
-                    dySy[j] = 0;
-                    dlogdet[j] = 0;
-                }
-                dySy[j] += l_dySy[i * nparms + j];
-                dlogdet[j] += l_dlogdet[i * nparms + j];
-                for (int k = 0; k < nparms; k++) {
-                    if (i == m) {
-                        ainfo[j * nparms + k] = 0;
-                    }
-                    ainfo[j * nparms + k] += l_ainfo[i * nparms * nparms + j * nparms + k];
-                }
-            }
-        }
+//         for (int i = m; i < n; i++) {
+//             for (int j = 0; j < p; j++) {
+//                 for (int k = 0; k < p; k++) {
+//                     for (int l = 0; l < nparms; l++) {
+//                         if (i == m) {
+//                             dXSX[j * p * nparms + k * nparms + l] = 0;
+//                         }
+//                         dXSX[j * p * nparms + k * nparms + l] += l_dXSX[i * p * p * nparms + j * p * nparms + k * nparms + l];
+//                     }
+//                 }
+//                 for (int k = 0; k < nparms; k++) {
+//                     if (i == m) {
+//                         dySX[j * nparms + k] = 0;
+//                     }
+//                     dySX[j * nparms + k] += l_dySX[i * p * nparms + j * nparms + k];
+//                 }
+//             }
+//             for (int j = 0; j < nparms; j++) {
+//                 if (i == m) {
+//                     dySy[j] = 0;
+//                     dlogdet[j] = 0;
+//                 }
+//                 dySy[j] += l_dySy[i * nparms + j];
+//                 dlogdet[j] += l_dlogdet[i * nparms + j];
+//                 for (int k = 0; k < nparms; k++) {
+//                     if (i == m) {
+//                         ainfo[j * nparms + k] = 0;
+//                     }
+//                     ainfo[j * nparms + k] += l_ainfo[i * nparms * nparms + j * nparms + k];
+//                 }
+//             }
+//         }
 
-        free(l_dySX);
-        free(l_dXSX);
-        free(l_dySy);
-        free(l_dlogdet);
-        free(l_ainfo);
-    }
+//         free(l_dySX);
+//         free(l_dXSX);
+//         free(l_dySy);
+//         free(l_dlogdet);
+//         free(l_ainfo);
+//     }
 
-    free(sublocs);
-    free(cov);
-    free(ysub);
-    free(X0);
-    free(dcovmat);
-    free(lonevec);
-    free(LiX0);
-    free(lcov);
-    free(Liy0);
-}
+//     free(sublocs);
+//     free(cov);
+//     free(ysub);
+//     free(X0);
+//     free(dcovmat);
+//     free(lonevec);
+//     free(LiX0);
+//     free(lcov);
+//     free(Liy0);
+// }

@@ -34,31 +34,31 @@ void call_compute_pieces_gpu(
     int dim
 );
 
-extern "C"
-void call_compute_pieces_gpu_batched(
-    double* covparms,
-    const short covfun_name,
-    double* locs,
-    double* NNarray,
-    double* y,
-    double* X,
-    double* XSX,
-    double* ySX,
-    double* ySy,
-    double* logdet,
-    double* dXSX,
-    double* dySX,
-    double* dySy,
-    double* dlogdet,
-    double* ainfo,
-    int profbeta,
-    int grad_info,
-    int n,
-    int m,
-    int p,
-    int nparms,
-    int dim
-);
+// extern "C"
+// void call_compute_pieces_gpu_batched(
+//     double* covparms,
+//     const short covfun_name,
+//     double* locs,
+//     double* NNarray,
+//     double* y,
+//     double* X,
+//     double* XSX,
+//     double* ySX,
+//     double* ySy,
+//     double* logdet,
+//     double* dXSX,
+//     double* dySX,
+//     double* dySy,
+//     double* dlogdet,
+//     double* ainfo,
+//     int profbeta,
+//     int grad_info,
+//     int n,
+//     int m,
+//     int p,
+//     int nparms,
+//     int dim
+// );
 
 
 arma::vec forward_solve2( arma::mat cholmat, arma::vec b ){
