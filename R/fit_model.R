@@ -103,9 +103,10 @@ fit_model <- function(y, locs, X = NULL, covfun_name = "matern_isotropic",
     "exponential_scaledim",
     "exponential_spacetime",
     "exponential_spheretime")){
-		stop("covariance function not supported on gpu.")
+		stop("Covariance function not supported on gpu\n")
 	} else if (gpu && group) {
-		stop("group calculation not supported on gpu")
+		cat("Group calculation not supported on gpu, using no grouping\n")
+	    group = F
 	}
 
     n <- length(y)
