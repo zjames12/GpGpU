@@ -1,4 +1,4 @@
 library(testthat)
-library(GpGp)
+library(GpGpU)
 
-test_check("GpGp")
+test_check("GpGpU")
